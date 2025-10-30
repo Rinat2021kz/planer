@@ -1,142 +1,131 @@
-# Planer - React + TypeScript + Vite + Capacitor
+# Planer
 
-A cross-platform application built with React, TypeScript, Vite, and Capacitor for web, iOS, and Android.
+Кроссплатформенное приложение-планировщик с поддержкой веб, iOS и Android.
 
-Currently, two official plugins are available:
+## 🚀 Технологии
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Frontend:** React 19 + TypeScript + Vite
+- **Backend:** Cloudflare Workers
+- **Mobile:** Capacitor 7
+- **Стиль кода:** ESLint + TypeScript ESLint
 
-## Expanding the ESLint configuration
+## 📋 Предварительные требования
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Для веб-разработки:
+- Node.js 18+ и npm
+- Cloudflare Wrangler (включен в devDependencies)
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Для Android разработки:
+- Android Studio с Android SDK
+- JDK 17 или выше
+- Настроенные переменные окружения (`ANDROID_HOME`)
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+📖 **Подробная инструкция:** см. [ANDROID_SETUP.md](./ANDROID_SETUP.md)
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+💡 **Проверка установки:** `npm run check:android`
+
+### Для iOS разработки:
+- macOS (только на Mac можно собирать iOS приложения)
+- Xcode 14 или выше
+- CocoaPods: `sudo gem install cocoapods`
+- Xcode Command Line Tools: `xcode-select --install`
+
+📖 **Подробная инструкция:** см. [CAPACITOR_SETUP.md](./CAPACITOR_SETUP.md)
+
+## 📦 Установка
+
+```bash
+# Клонировать репозиторий и установить зависимости
+npm install
+
+# Генерация типов для Cloudflare Workers
+npm run cf-typegen
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 🛠️ Разработка
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Веб-разработка (локально)
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+# Запустить dev сервер с hot reload
+npm run dev
 ```
 
-## Capacitor Mobile Development
+Приложение будет доступно по адресу http://localhost:5173
 
-This project includes Capacitor for building iOS and Android apps.
+### Запуск с Cloudflare Workers локально
 
-### Prerequisites
+```bash
+# Сборка и предпросмотр с Workers
+npm run preview
+```
 
-**For Android:**
-- Android Studio with Android SDK installed
-- See `ANDROID_SETUP.md` for detailed installation instructions
+### Сборка для production
 
-**For iOS (macOS only):**
-- Xcode 14+
-- CocoaPods (`sudo gem install cocoapods`)
-- Xcode Command Line Tools
+```bash
+# Собрать приложение
+npm run build
 
-### Available Scripts
+# Проверить код
+npm run lint
+```
 
-**Quick commands (build + sync + open):**
-- `npm run android` - Build, sync, and open Android project
-- `npm run ios` - Build, sync, and open iOS project
+## ☁️ Деплой на Cloudflare
 
-**Individual commands:**
-- `npm run cap:sync` - Sync web assets to native projects
-- `npm run cap:copy` - Copy web bundle to native projects
-- `npm run cap:add:ios` - Add iOS platform
-- `npm run cap:add:android` - Add Android platform
-- `npm run cap:open:ios` - Open iOS project in Xcode
-- `npm run cap:open:android` - Open Android project in Android Studio
+```bash
+# Собрать и задеплоить на Cloudflare Pages + Workers
+npm run deploy
+```
 
-### Development Workflow
+Приложение будет развернуто на Cloudflare Pages с интегрированным Worker для API.
 
-1. **Build the web app:**
-   ```bash
-   npm run build
-   ```
+## 📱 Мобильная разработка
 
-2. **Add native platforms:**
-   ```bash
-   # For iOS
-   npm run cap:add:ios
-   
-   # For Android
-   npm run cap:add:android
-   ```
+### Android
 
-3. **Sync changes to native projects:**
-   ```bash
-   npm run cap:sync
-   ```
+```bash
+# Автоматическая проверка настроек Android
+npm run check:android
 
-4. **Open in native IDE:**
-   ```bash
-   # Open iOS in Xcode
-   npm run cap:open:ios
-   
-   # Open Android in Android Studio
-   npm run cap:open:android
-   ```
+# Автоматическая настройка окружения (если нужно)
+npm run setup:android
 
-### Live Reload Development
+# Добавить Android платформу (только первый раз)
+npm run cap:add:android
 
-To enable live reload during development:
+# Собрать и открыть проект в Android Studio
+npm run android
+```
 
-1. Run the dev server:
-   ```bash
-   npm run dev
-   ```
+### iOS (только macOS)
 
-2. Update `capacitor.config.ts` to point to your dev server:
+```bash
+# Добавить iOS платформу (только первый раз)
+npm run cap:add:ios
+
+# Собрать и открыть проект в Xcode
+npm run ios
+```
+
+### Отдельные команды Capacitor
+
+```bash
+# Синхронизировать изменения с нативными проектами
+npm run cap:sync
+
+# Только копировать web bundle (без синхронизации конфигурации)
+npm run cap:copy
+
+# Открыть Android проект в Android Studio
+npm run cap:open:android
+
+# Открыть iOS проект в Xcode
+npm run cap:open:ios
+```
+
+### Live Reload для мобильной разработки
+
+1. Раскомментируйте секцию `server` в `capacitor.config.ts`:
    ```typescript
    server: {
      url: 'http://localhost:5173',
@@ -144,23 +133,70 @@ To enable live reload during development:
    }
    ```
 
-3. Sync and run:
+2. Запустите dev сервер:
+   ```bash
+   npm run dev
+   ```
+
+3. Синхронизируйте изменения:
    ```bash
    npm run cap:sync
    ```
 
-### Production Build
+4. Запустите приложение из Android Studio или Xcode
 
-1. Build the production bundle:
-   ```bash
-   npm run build
-   ```
+⚠️ **Для production сборки:** удалите или закомментируйте секцию `server` в `capacitor.config.ts`
 
-2. Remove the server configuration from `capacitor.config.ts` (or comment it out)
+## 📁 Структура проекта
 
-3. Sync to native projects:
-   ```bash
-   npm run cap:sync
-   ```
+```
+planer/
+├── src/                    # Исходный код React приложения
+│   ├── App.tsx            # Главный компонент
+│   ├── main.tsx           # Точка входа
+│   └── assets/            # Изображения и статические файлы
+├── worker/                # Cloudflare Worker (API)
+│   └── index.ts           # Обработчик Worker
+├── android/               # Нативный Android проект (генерируется Capacitor)
+├── dist/                  # Собранное приложение
+│   ├── client/           # Веб-приложение (используется Capacitor)
+│   └── planer/           # Worker bundle
+├── public/                # Публичные статические файлы
+├── capacitor.config.ts    # Конфигурация Capacitor
+├── vite.config.ts        # Конфигурация Vite
+├── wrangler.jsonc        # Конфигурация Cloudflare Workers
+└── *.ps1                 # Скрипты для настройки Android на Windows
+```
 
-4. Build and run in native IDEs as usual
+## 🔌 Установленные Capacitor плагины
+
+- `@capacitor/app` - Базовые функции приложения
+- `@capacitor/device` - Информация об устройстве
+- `@capacitor/haptics` - Тактильная обратная связь
+- `@capacitor/keyboard` - Управление клавиатурой
+- `@capacitor/splash-screen` - Экран загрузки
+- `@capacitor/status-bar` - Настройка статус-бара
+
+## 🆘 Помощь и устранение проблем
+
+### Android
+- Если возникают проблемы с Android SDK: `npm run find:android`
+- Ручная настройка окружения: `npm run setup:android:manual`
+- См. подробности в [ANDROID_SETUP.md](./ANDROID_SETUP.md)
+
+### iOS
+- Убедитесь, что используете macOS
+- Проверьте установку Xcode и Command Line Tools
+- См. подробности в [CAPACITOR_SETUP.md](./CAPACITOR_SETUP.md)
+
+## 📚 Полезные ссылки
+
+- [Vite документация](https://vite.dev)
+- [React документация](https://react.dev)
+- [Cloudflare Workers](https://workers.cloudflare.com/)
+- [Capacitor документация](https://capacitorjs.com/docs)
+- [Android Studio](https://developer.android.com/studio)
+
+## 📝 Лицензия
+
+MIT
