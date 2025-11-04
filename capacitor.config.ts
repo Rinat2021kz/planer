@@ -4,10 +4,14 @@ const config: CapacitorConfig = {
   appId: 'com.adifirst.planer',
   appName: 'planer',
   webDir: 'dist/client',
+  
+
   server: {
+    url: 'https://planer.gassimov2014.workers.dev',
     androidScheme: 'https',
-    iosScheme: 'https',
+     iosScheme: 'https',
   },
+
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,
@@ -22,6 +26,9 @@ const config: CapacitorConfig = {
       splashFullScreen: true,
       splashImmersive: true,
     },
+    "EdgeToEdge": {
+      "backgroundColor": "#000000"
+    }
   },
 };
 

@@ -5,6 +5,7 @@
 ## 🚀 Технологии
 
 - **Frontend:** React 19 + TypeScript + Vite
+- **UI Library:** Material UI (MUI) 6
 - **Backend:** Cloudflare Workers
 - **Mobile:** Capacitor 7
 - **Стиль кода:** ESLint + TypeScript ESLint
