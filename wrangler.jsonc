@@ -12,18 +12,29 @@
 	},
 	"observability": {
 		"enabled": true
-	}
+	},
 	/**
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
 	 */
-	// "placement": { "mode": "smart" }
+	// "placement": { "mode": "smart" },
 	/**
 	 * Bindings
 	 * Bindings allow your Worker to interact with resources on the Cloudflare Developer Platform, including
 	 * databases, object storage, AI inference, real-time communication and more.
 	 * https://developers.cloudflare.com/workers/runtime-apis/bindings/
 	 */
+	/**
+	 * D1 Databases
+	 * https://developers.cloudflare.com/d1/
+	 */
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "planer-db",
+			"database_id": "f4b7c345-8f29-4021-a5f2-8014f2bdd76c"
+		}
+	]
 	/**
 	 * Environment Variables
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
