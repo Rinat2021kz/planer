@@ -41,7 +41,7 @@
 		"@capawesome/capacitor-android-edge-to-edge-support": "^7.2.3",
 		"@emotion/react": "^11.14.0",
 		"@emotion/styled": "^11.14.1",
-		"@hono/firebase-auth": "^2.2.0",
+		"@hono/firebase-auth": "^1.4.2",
 		"@mui/icons-material": "^7.3.5",
 		"@mui/material": "^7.3.5",
 		"firebase": "^12.5.0",
