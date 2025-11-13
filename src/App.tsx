@@ -26,6 +26,7 @@ import {
   Switch,
   Toolbar,
   Typography,
+  CircularProgress,
 } from '@mui/material'
 import {
   Menu as MenuIcon,
@@ -39,16 +40,53 @@ import {
   Info as InfoIcon,
   LightMode as LightModeIcon,
   DarkMode as DarkModeIcon,
+  Logout as LogoutIcon,
 } from '@mui/icons-material'
 import { useThemeContext } from './ThemeContext'
+import { useAuth } from './AuthContext'
+import { Login } from './components/Login'
+import { Register } from './components/Register'
+import { VerifyEmail } from './components/VerifyEmail'
 import './App.css'
 
 function App() {
   const { mode, toggleTheme } = useThemeContext()
+  const { user, loading, logout } = useAuth()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [bottomNavValue, setBottomNavValue] = useState(0)
   const [name, setName] = useState('unknown')
+  const [authView, setAuthView] = useState<'login' | 'register'>('login')
+
+  // Show loading spinner while checking auth state
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    )
+  }
+
+  // Show login/register if user is not authenticated
+  if (!user) {
+    return authView === 'login' ? (
+      <Login onSwitchToRegister={() => setAuthView('register')} />
+    ) : (
+      <Register onSwitchToLogin={() => setAuthView('login')} />
+    )
+  }
+
+  // Show email verification screen if email is not verified
+  if (!user.emailVerified) {
+    return <VerifyEmail />
+  }
 
   const toggleDrawer = (open: boolean) => () => {
     setDrawerOpen(open)
@@ -56,6 +94,14 @@ function App() {
 
   const handleModalOpen = () => setModalOpen(true)
   const handleModalClose = () => setModalOpen(false)
+
+  const handleLogout = async () => {
+    try {
+      await logout()
+    } catch (error) {
+      console.error('Error logging out:', error)
+    }
+  }
 
   const menuItems = [
     { text: 'Главная', icon: <HomeIcon /> },
@@ -115,10 +161,12 @@ function App() {
               alt="User"
               sx={{ width: 64, height: 64, mx: 'auto', mb: 1, bgcolor: 'secondary.main' }}
             >
-              P
+              {user?.email?.charAt(0).toUpperCase() || 'U'}
             </Avatar>
-            <Typography variant="h6">Пользователь</Typography>
-            <Typography variant="body2">user@example.com</Typography>
+            <Typography variant="h6">
+              {user?.displayName || 'Пользователь'}
+            </Typography>
+            <Typography variant="body2">{user?.email}</Typography>
           </Box>
 
           {/* Переключатель темы */}
@@ -152,6 +200,20 @@ function App() {
                 </ListItemButton>
               </ListItem>
             ))}
+          </List>
+
+          <Divider />
+
+          {/* Logout */}
+          <List>
+            <ListItem disablePadding>
+              <ListItemButton onClick={handleLogout}>
+                <ListItemIcon>
+                  <LogoutIcon />
+                </ListItemIcon>
+                <ListItemText primary="Выход" />
+              </ListItemButton>
+            </ListItem>
           </List>
         </Box>
       </Drawer>
@@ -189,10 +251,21 @@ function App() {
               <Button
                 size="small"
                 variant="contained"
-                onClick={() => {
-                  fetch('/api/')
-                    .then((res) => res.json() as Promise<{ name: string }>)
-                    .then((data) => setName(data.name))
+                onClick={async () => {
+                  try {
+                    const token = localStorage.getItem('firebaseToken')
+                    const response = await fetch('/api/protected', {
+                      headers: {
+                        Authorization: `Bearer ${token}`,
+                      },
+                    })
+                    const data = await response.json() as { name?: string; email?: string }
+                    if (data.name) {
+                      setName(data.name)
+                    }
+                  } catch (error) {
+                    console.error('Error fetching data:', error)
+                  }
                 }}
               >
                 Получить данные

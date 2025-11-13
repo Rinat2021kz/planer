@@ -2,11 +2,17 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
+import {
+  VerifyFirebaseAuthConfig,
+  VerifyFirebaseAuthEnv,
+  verifyFirebaseAuth,
+  getFirebaseToken,
+} from '@hono/firebase-auth';
 
 // Type definitions
 type Bindings = {
   DB: D1Database;
-};
+} & VerifyFirebaseAuthEnv;
 
 type Variables = {
   userId?: string;
@@ -39,6 +45,12 @@ type VersionListResponse = {
   createdAt: string;
 };
 
+// Firebase Auth configuration
+const firebaseAuthConfig: VerifyFirebaseAuthConfig = {
+  projectId: 'planer-8edbd',
+  authorizationHeaderKey: 'Authorization',
+};
+
 // Initialize Hono app
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
@@ -49,6 +61,7 @@ app.use('/api/*', cors({
   origin: '*',
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
 }));
 
 // Error handling middleware
@@ -63,7 +76,7 @@ app.onError((err, c) => {
   );
 });
 
-// Health check endpoint
+// Public endpoints (no authentication required)
 app.get('/api/health', (c) => {
   return c.json({
     status: 'ok',
@@ -71,7 +84,7 @@ app.get('/api/health', (c) => {
   });
 });
 
-// Get current active app version
+// Public endpoint: Get current active app version
 app.get('/api/version', async (c) => {
   try {
     const result = await c.env.DB.prepare(
@@ -102,14 +115,14 @@ app.get('/api/version', async (c) => {
   }
 });
 
-// Get all versions
+// Public endpoint: Get all versions
 app.get('/api/versions', async (c) => {
   try {
     const { results } = await c.env.DB.prepare(
       "SELECT id, version, build_number, release_date, description, is_active, created_at FROM app_version ORDER BY created_at DESC"
     ).all<AppVersion>();
 
-    const versions: VersionListResponse[] = results.map((row) => ({
+    const versions: VersionListResponse[] = results.map((row: AppVersion) => ({
       id: row.id,
       version: row.version,
       buildNumber: row.build_number,
@@ -132,11 +145,47 @@ app.get('/api/versions', async (c) => {
   }
 });
 
-// Legacy test endpoint
-app.get('/api/*', (c) => {
+// Apply Firebase Auth middleware to all protected routes
+app.use('/api/protected/*', verifyFirebaseAuth(firebaseAuthConfig));
+
+// Email verification check middleware
+app.use('/api/protected/*', async (c, next) => {
+  const idToken = getFirebaseToken(c);
+  
+  // Check if email is verified
+  if (!idToken?.email_verified) {
+    return c.json(
+      {
+        error: 'Email not verified',
+        message: 'Please verify your email address before accessing this resource.',
+      },
+      403
+    );
+  }
+  
+  await next();
+});
+
+// Protected endpoint example
+app.get('/api/protected', (c) => {
+  const idToken = getFirebaseToken(c);
   return c.json({
     name: "Rinat",
     message: "API is running",
+    email: idToken?.email,
+    userId: idToken?.uid,
+  });
+});
+
+// Protected endpoint: User profile
+app.get('/api/protected/profile', (c) => {
+  const idToken = getFirebaseToken(c);
+  return c.json({
+    uid: idToken?.uid,
+    email: idToken?.email,
+    emailVerified: idToken?.email_verified,
+    name: idToken?.name,
+    picture: idToken?.picture,
   });
 });
 
