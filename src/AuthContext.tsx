@@ -1,12 +1,13 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import {
-  User,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
   sendEmailVerification,
 } from 'firebase/auth';
+import type { User } from 'firebase/auth';
 import { auth } from './firebase';
 
 // Auth context type

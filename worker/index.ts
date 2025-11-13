@@ -3,10 +3,12 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
 import {
-  VerifyFirebaseAuthConfig,
-  VerifyFirebaseAuthEnv,
   verifyFirebaseAuth,
   getFirebaseToken,
+} from '@hono/firebase-auth';
+import type {
+  VerifyFirebaseAuthConfig,
+  VerifyFirebaseAuthEnv,
 } from '@hono/firebase-auth';
 
 // Type definitions
