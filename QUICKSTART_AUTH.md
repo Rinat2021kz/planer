@@ -34,12 +34,24 @@ npx wrangler kv:namespace create PUBLIC_JWK_CACHE_KV
 ]
 ```
 
-### 4. Включите Email/Password авторизацию в Firebase Console
+### 4. Настройте Firebase Authentication
+
+#### 4.1. Включите Email/Password авторизацию
 
 1. Перейдите на https://console.firebase.google.com/
 2. Выберите проект **planer-8edbd**
 3. Откройте **Authentication** → **Sign-in method**
 4. Включите провайдер **Email/Password**
+
+#### 4.2. Добавьте авторизованный домен для перенаправлений
+
+1. В том же разделе **Authentication** → **Settings** (вкладка)
+2. Прокрутите до **Authorized domains**
+3. Нажмите **Add domain**
+4. Добавьте: `planer.gassimov2014.workers.dev`
+5. Сохраните изменения
+
+**Важно:** Без добавления домена письма верификации не смогут перенаправлять на ваш сайт!
 
 ### 5. Запустите проект
 
@@ -49,14 +61,15 @@ npm run dev
 
 ### 6. Тестирование
 
-1. Откройте приложение в браузере
+1. Откройте приложение в браузере: https://planer.gassimov2014.workers.dev/
 2. Вы увидите экран входа
 3. Создайте новый аккаунт (Sign up)
 4. **Проверьте email** - вам придет письмо с ссылкой для подтверждения
 5. Кликните на ссылку в письме для подтверждения email
-6. Вернитесь в приложение и нажмите "I Verified My Email"
-7. После подтверждения вы войдете в систему
-8. Попробуйте кнопку "Получить данные" - она сделает защищенный API запрос
+6. **Вы будете автоматически перенаправлены обратно на** https://planer.gassimov2014.workers.dev/
+7. Нажмите кнопку "I Verified My Email" для проверки статуса
+8. После подтверждения вы войдете в систему
+9. Попробуйте кнопку "Получить данные" - она сделает защищенный API запрос
 
 ## Что реализовано
 
@@ -138,4 +151,8 @@ console.log(data); // { uid, email, emailVerified, name, picture }
 **Письмо верификации не приходит**
 → Проверьте папку "Спам" или "Промоакции"
 → Используйте кнопку "Resend Verification Email"
+
+**Ссылка верификации не работает / не перенаправляет**
+→ Убедитесь, что домен `planer.gassimov2014.workers.dev` добавлен в **Authorized domains** в Firebase Console
+→ Authentication → Settings → Authorized domains → Add domain
 

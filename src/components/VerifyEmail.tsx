@@ -152,7 +152,7 @@ export const VerifyEmail = () => {
             <Box sx={{ mt: 3, p: 2, bgcolor: 'info.lighter', borderRadius: 1 }}>
               <Typography variant="caption" color="text.secondary">
                 <strong>Note:</strong> After clicking the verification link in your email, 
-                come back here and click "I Verified My Email" button.
+                you will be redirected back to this app. Then click "I Verified My Email" button to continue.
               </Typography>
             </Box>
           </CardContent>

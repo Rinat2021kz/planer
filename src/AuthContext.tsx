@@ -46,8 +46,15 @@ export const AuthContextProvider = ({ children }: AuthContextProviderProps) => {
   // Sign up with email and password
   const signup = async (email: string, password: string) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    // Send email verification
-    await sendEmailVerification(userCredential.user);
+    
+    // Configure action code settings for email verification
+    const actionCodeSettings = {
+      url: 'https://planer.gassimov2014.workers.dev/',
+      handleCodeInApp: false,
+    };
+    
+    // Send email verification with redirect URL
+    await sendEmailVerification(userCredential.user, actionCodeSettings);
   };
 
   // Login with email and password
@@ -64,7 +71,13 @@ export const AuthContextProvider = ({ children }: AuthContextProviderProps) => {
   // Resend verification email
   const resendVerificationEmail = async () => {
     if (user && !user.emailVerified) {
-      await sendEmailVerification(user);
+      // Configure action code settings for email verification
+      const actionCodeSettings = {
+        url: 'https://planer.gassimov2014.workers.dev/',
+        handleCodeInApp: false,
+      };
+      
+      await sendEmailVerification(user, actionCodeSettings);
     } else {
       throw new Error('User not found or already verified');
     }
