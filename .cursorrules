@@ -1,0 +1,101 @@
+# Project Rules for Planer
+
+## Tech Stack
+This project uses the following technology stack:
+- **Frontend**: React 19 + Vite 7 + TypeScript
+- **UI Framework**: Material-UI (MUI) v7
+- **Backend**: Cloudflare Workers with Hono framework
+- **Database**: Cloudflare D1 (SQLite-based)
+- **Authentication**: Firebase Auth with JWT
+- **Mobile**: Capacitor 7 (iOS & Android support)
+- **State Management**: React Context API (ThemeContext exists)
+
+## Project Structure
+- `/src` - React frontend source code
+- `/worker` - Cloudflare Workers backend code
+- `/migrations` - D1 database migration files
+- `/android` - Capacitor Android native project
+- `/dist` - Build output (client + worker)
+- `/public` - Static assets
+
+## Code Style & Practices
+
+### General Rules
+- All code must be clear, simple, and readable
+- Always choose the simplest implementation approach
+- Preserve all existing functionality when modifying code
+- Code comments must be in English only
+- Console logs and error messages must be in English only
+
+### Technology Constraints
+- NEVER introduce new technologies, frameworks, or languages without explicit user approval
+- Stick to the existing tech stack: React, MUI, Cloudflare Workers, D1, Hono, Firebase Auth
+- Use Material-UI components for all UI elements
+- Use React 19 features (no legacy patterns)
+- Use TypeScript for type safety
+
+### Documentation
+- DO NOT automatically create documentation files
+- DO NOT create multiple .md files without explicit user request
+- Only generate documentation when specifically asked
+
+### Database (D1)
+- Use Wrangler CLI for database operations
+- Create migrations using `npm run db:migrate:create`
+- Test locally with `npm run db:migrate:local`
+- Deploy to remote with `npm run db:migrate:remote`
+
+### Cloudflare Workers
+- Use Hono framework for routing and middleware
+- Follow Workers runtime constraints (no Node.js APIs)
+- Use environment bindings for D1 database access
+- Handle Firebase JWT authentication in worker middleware
+
+### React & Frontend
+- Use functional components with hooks
+- Use MUI components following Material Design 3 principles
+- Use Emotion for styling (MUI's default)
+- Use ThemeContext for theme management
+- Follow React 19 best practices
+
+### Mobile (Capacitor)
+- Sync changes with `npm run cap:sync`
+- Test Android with `npm run android`
+- Keep native code changes minimal
+- Use Capacitor plugins for native features
+
+### Build & Deploy
+- Build command: `npm run build`
+- Deploy to Cloudflare: `npm run deploy`
+- Preview locally: `npm run preview`
+
+## Context7 Integration
+- Automatically use context7 for code generation requiring library documentation
+- Use context7 for setup and configuration steps
+- Use context7 for API documentation lookups
+- This applies to: React, MUI, Hono, Cloudflare Workers APIs, D1, Firebase Auth
+
+## Firebase Authentication
+- Use JWT tokens for authentication
+- Validate tokens in Cloudflare Workers middleware
+- Store user data in D1 database after authentication
+
+## Development Workflow
+1. Make changes to source code
+2. Test locally with `npm run dev`
+3. For database changes, create and apply migrations
+4. Build and preview before deploying
+5. Deploy to Cloudflare with `npm run deploy`
+
+## Anti-Patterns to Avoid
+- ❌ Don't use class components
+- ❌ Don't introduce state management libraries without approval
+- ❌ Don't create unnecessary abstraction layers
+- ❌ Don't use Node.js-specific APIs in Workers code
+- ❌ Don't bypass TypeScript type checking
+- ❌ Don't create helper scripts or markdown files automatically
+- ❌ Don't use inline styles when MUI system props are available
+- ❌ Don't modify native Android/iOS code without user request
+
+
+
