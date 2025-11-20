@@ -21,9 +21,10 @@ import { useAuth } from '../AuthContext';
 
 type LoginProps = {
   onSwitchToRegister: () => void;
+  onSwitchToForgotPassword: () => void;
 };
 
-export const Login = ({ onSwitchToRegister }: LoginProps) => {
+export const Login = ({ onSwitchToRegister, onSwitchToForgotPassword }: LoginProps) => {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -123,6 +124,16 @@ export const Login = ({ onSwitchToRegister }: LoginProps) => {
                     },
                   }}
                 />
+                <Box sx={{ textAlign: 'right' }}>
+                  <Link
+                    component="button"
+                    variant="body2"
+                    onClick={onSwitchToForgotPassword}
+                    sx={{ cursor: 'pointer' }}
+                  >
+                    Forgot password?
+                  </Link>
+                </Box>
                 <Button
                   type="submit"
                   variant="contained"

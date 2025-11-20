@@ -6,6 +6,7 @@ import {
   signOut,
   onAuthStateChanged,
   sendEmailVerification,
+  sendPasswordResetEmail,
 } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import { auth } from './firebase';
@@ -19,6 +20,7 @@ type AuthContextType = {
   logout: () => Promise<void>;
   getIdToken: () => Promise<string | null>;
   resendVerificationEmail: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 };
 
 // Create context
@@ -81,6 +83,16 @@ export const AuthContextProvider = ({ children }: AuthContextProviderProps) => {
     } else {
       throw new Error('User not found or already verified');
     }
+  };
+
+  // Reset password
+  const resetPassword = async (email: string) => {
+    const actionCodeSettings = {
+      url: 'https://planer.gassimov2014.workers.dev/',
+      handleCodeInApp: false,
+    };
+    
+    await sendPasswordResetEmail(auth, email, actionCodeSettings);
   };
 
   // Logout
@@ -150,6 +162,7 @@ export const AuthContextProvider = ({ children }: AuthContextProviderProps) => {
     logout,
     getIdToken,
     resendVerificationEmail,
+    resetPassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

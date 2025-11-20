@@ -47,6 +47,7 @@ import { useAuth } from './AuthContext'
 import { Login } from './components/Login'
 import { Register } from './components/Register'
 import { VerifyEmail } from './components/VerifyEmail'
+import { ForgotPassword } from './components/ForgotPassword'
 import './App.css'
 
 function App() {
@@ -56,7 +57,7 @@ function App() {
   const [modalOpen, setModalOpen] = useState(false)
   const [bottomNavValue, setBottomNavValue] = useState(0)
   const [name, setName] = useState('unknown')
-  const [authView, setAuthView] = useState<'login' | 'register'>('login')
+  const [authView, setAuthView] = useState<'login' | 'register' | 'forgot-password'>('login')
 
   // Show loading spinner while checking auth state
   if (loading) {
@@ -74,13 +75,20 @@ function App() {
     )
   }
 
-  // Show login/register if user is not authenticated
+  // Show login/register/forgot-password if user is not authenticated
   if (!user) {
-    return authView === 'login' ? (
-      <Login onSwitchToRegister={() => setAuthView('register')} />
-    ) : (
-      <Register onSwitchToLogin={() => setAuthView('login')} />
-    )
+    if (authView === 'login') {
+      return (
+        <Login
+          onSwitchToRegister={() => setAuthView('register')}
+          onSwitchToForgotPassword={() => setAuthView('forgot-password')}
+        />
+      )
+    } else if (authView === 'register') {
+      return <Register onSwitchToLogin={() => setAuthView('login')} />
+    } else {
+      return <ForgotPassword onBackToLogin={() => setAuthView('login')} />
+    }
   }
 
   // Show email verification screen if email is not verified
