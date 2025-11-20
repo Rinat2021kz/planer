@@ -9,16 +9,21 @@ import {
   Alert,
   Stack,
   CircularProgress,
+  IconButton,
 } from '@mui/material';
 import {
   Email as EmailIcon,
   Refresh as RefreshIcon,
   Logout as LogoutIcon,
+  LightMode as LightModeIcon,
+  DarkMode as DarkModeIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../AuthContext';
+import { useThemeContext } from '../ThemeContext';
 
 export const VerifyEmail = () => {
   const { user, logout, resendVerificationEmail } = useAuth();
+  const { mode, toggleTheme } = useThemeContext();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -87,6 +92,11 @@ export const VerifyEmail = () => {
       >
         <Card sx={{ width: '100%', maxWidth: 400 }}>
           <CardContent sx={{ p: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+              <IconButton onClick={toggleTheme} size="large" color="primary">
+                {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+              </IconButton>
+            </Box>
             <Box sx={{ textAlign: 'center', mb: 3 }}>
               <EmailIcon sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
               <Typography variant="h4" component="h1" gutterBottom>

@@ -10,9 +10,15 @@ import {
   Alert,
   Link,
   Stack,
+  IconButton,
 } from '@mui/material';
-import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
+import {
+  ArrowBack as ArrowBackIcon,
+  LightMode as LightModeIcon,
+  DarkMode as DarkModeIcon,
+} from '@mui/icons-material';
 import { useAuth } from '../AuthContext';
+import { useThemeContext } from '../ThemeContext';
 
 type ForgotPasswordProps = {
   onBackToLogin: () => void;
@@ -20,6 +26,7 @@ type ForgotPasswordProps = {
 
 export const ForgotPassword = ({ onBackToLogin }: ForgotPasswordProps) => {
   const { resetPassword } = useAuth();
+  const { mode, toggleTheme } = useThemeContext();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -70,9 +77,14 @@ export const ForgotPassword = ({ onBackToLogin }: ForgotPasswordProps) => {
       >
         <Card sx={{ width: '100%', maxWidth: 400 }}>
           <CardContent sx={{ p: 4 }}>
-            <Typography variant="h4" component="h1" gutterBottom align="center">
-              Reset Password
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h4" component="h1">
+                Reset Password
+              </Typography>
+              <IconButton onClick={toggleTheme} size="large" color="primary">
+                {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+              </IconButton>
+            </Box>
             <Typography
               variant="body2"
               color="text.secondary"

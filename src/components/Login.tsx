@@ -16,8 +16,11 @@ import {
 import {
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
+  LightMode as LightModeIcon,
+  DarkMode as DarkModeIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../AuthContext';
+import { useThemeContext } from '../ThemeContext';
 
 type LoginProps = {
   onSwitchToRegister: () => void;
@@ -26,6 +29,7 @@ type LoginProps = {
 
 export const Login = ({ onSwitchToRegister, onSwitchToForgotPassword }: LoginProps) => {
   const { login } = useAuth();
+  const { mode, toggleTheme } = useThemeContext();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -68,9 +72,14 @@ export const Login = ({ onSwitchToRegister, onSwitchToForgotPassword }: LoginPro
       >
         <Card sx={{ width: '100%', maxWidth: 400 }}>
           <CardContent sx={{ p: 4 }}>
-            <Typography variant="h4" component="h1" gutterBottom align="center">
-              Login
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h4" component="h1">
+                Login
+              </Typography>
+              <IconButton onClick={toggleTheme} size="large" color="primary">
+                {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+              </IconButton>
+            </Box>
             <Typography
               variant="body2"
               color="text.secondary"
