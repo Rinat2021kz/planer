@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
@@ -26,8 +27,22 @@ type ThemeContextProviderProps = {
 }
 
 export const ThemeContextProvider = ({ children }: ThemeContextProviderProps) => {
+  // Check if user is authenticated (has Firebase token)
+  const isAuthenticated = () => {
+    return localStorage.getItem('firebaseToken') !== null
+  }
+
   // Определяем тему из localStorage или системных настроек
   const getInitialMode = (): PaletteMode => {
+    // For unauthenticated users, always use system theme
+    if (!isAuthenticated()) {
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        return 'dark'
+      }
+      return 'light'
+    }
+
+    // For authenticated users, use saved preference or system theme
     const savedMode = localStorage.getItem('themeMode')
     if (savedMode === 'light' || savedMode === 'dark') {
       return savedMode
@@ -46,7 +61,13 @@ export const ThemeContextProvider = ({ children }: ThemeContextProviderProps) =>
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
     
     const handleChange = (e: MediaQueryListEvent) => {
-      // Только если пользователь не выбрал тему вручную
+      // For unauthenticated users, always follow system theme
+      if (!isAuthenticated()) {
+        setMode(e.matches ? 'dark' : 'light')
+        return
+      }
+
+      // For authenticated users, only update if no saved preference
       const savedMode = localStorage.getItem('themeMode')
       if (!savedMode) {
         setMode(e.matches ? 'dark' : 'light')
@@ -65,9 +86,11 @@ export const ThemeContextProvider = ({ children }: ThemeContextProviderProps) =>
     }
   }, [])
 
-  // Сохраняем выбор темы
+  // Сохраняем выбор темы только для авторизованных пользователей
   useEffect(() => {
-    localStorage.setItem('themeMode', mode)
+    if (isAuthenticated()) {
+      localStorage.setItem('themeMode', mode)
+    }
   }, [mode])
 
   const toggleTheme = () => {
