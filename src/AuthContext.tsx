@@ -49,14 +49,8 @@ export const AuthContextProvider = ({ children }: AuthContextProviderProps) => {
   const signup = async (email: string, password: string) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     
-    // Configure action code settings for email verification
-    const actionCodeSettings = {
-      url: 'https://planer.gassimov2014.workers.dev/',
-      handleCodeInApp: false,
-    };
-    
-    // Send email verification with redirect URL
-    await sendEmailVerification(userCredential.user, actionCodeSettings);
+    // Send email verification (Firebase will use default page)
+    await sendEmailVerification(userCredential.user);
   };
 
   // Login with email and password
@@ -73,13 +67,8 @@ export const AuthContextProvider = ({ children }: AuthContextProviderProps) => {
   // Resend verification email
   const resendVerificationEmail = async () => {
     if (user && !user.emailVerified) {
-      // Configure action code settings for email verification
-      const actionCodeSettings = {
-        url: 'https://planer.gassimov2014.workers.dev/',
-        handleCodeInApp: false,
-      };
-      
-      await sendEmailVerification(user, actionCodeSettings);
+      // Send email verification (Firebase will use default page)
+      await sendEmailVerification(user);
     } else {
       throw new Error('User not found or already verified');
     }
@@ -87,12 +76,8 @@ export const AuthContextProvider = ({ children }: AuthContextProviderProps) => {
 
   // Reset password
   const resetPassword = async (email: string) => {
-    const actionCodeSettings = {
-      url: 'https://planer.gassimov2014.workers.dev/',
-      handleCodeInApp: false,
-    };
-    
-    await sendPasswordResetEmail(auth, email, actionCodeSettings);
+    // Use Firebase default reset page
+    await sendPasswordResetEmail(auth, email);
   };
 
   // Logout
