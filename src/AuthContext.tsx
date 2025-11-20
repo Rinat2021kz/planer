@@ -102,22 +102,6 @@ export const AuthContextProvider = ({ children }: AuthContextProviderProps) => {
   // Listen to auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      // Check if token exists in localStorage
-      const storedToken = localStorage.getItem('firebaseToken');
-      
-      // If user is logged in but token is missing, force logout
-      if (currentUser && !storedToken) {
-        console.log('Token missing from localStorage, logging out...');
-        try {
-          await signOut(auth);
-          setUser(null);
-          setLoading(false);
-          return;
-        } catch (error) {
-          console.error('Error during forced logout:', error);
-        }
-      }
-      
       setUser(currentUser);
       
       // Get and store token when user logs in
@@ -143,19 +127,6 @@ export const AuthContextProvider = ({ children }: AuthContextProviderProps) => {
     if (!user) return;
 
     const intervalId = setInterval(async () => {
-      // Check if token still exists in localStorage
-      const storedToken = localStorage.getItem('firebaseToken');
-      
-      if (!storedToken) {
-        console.log('Token removed from localStorage, logging out...');
-        try {
-          await signOut(auth);
-        } catch (error) {
-          console.error('Error during logout:', error);
-        }
-        return;
-      }
-      
       try {
         const token = await user.getIdToken(true); // force refresh
         localStorage.setItem('firebaseToken', token);
@@ -168,28 +139,45 @@ export const AuthContextProvider = ({ children }: AuthContextProviderProps) => {
     return () => clearInterval(intervalId);
   }, [user]);
 
-  // Check token on window focus (e.g., when switching tabs)
+  // Listen to localStorage changes (e.g., token removed in another tab or via console)
   useEffect(() => {
     if (!user) return;
 
-    const handleFocus = async () => {
-      const storedToken = localStorage.getItem('firebaseToken');
-      
-      if (!storedToken) {
-        console.log('Token removed from localStorage (on focus), logging out...');
+    const handleStorageChange = async (e: StorageEvent) => {
+      // Check if firebaseToken was removed or cleared
+      if (e.key === 'firebaseToken' && e.newValue === null && e.oldValue !== null) {
+        console.log('Token removed from localStorage, logging out...');
         try {
           await signOut(auth);
         } catch (error) {
-          console.error('Error during logout on focus:', error);
+          console.error('Error during logout on storage change:', error);
         }
       }
     };
 
-    window.addEventListener('focus', handleFocus);
+    window.addEventListener('storage', handleStorageChange);
     
     return () => {
-      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('storage', handleStorageChange);
     };
+  }, [user]);
+
+  // Check token periodically to detect manual removal via console
+  useEffect(() => {
+    if (!user) return;
+
+    const checkInterval = setInterval(() => {
+      const storedToken = localStorage.getItem('firebaseToken');
+      
+      if (!storedToken) {
+        console.log('Token manually removed from localStorage, logging out...');
+        signOut(auth).catch(error => {
+          console.error('Error during logout:', error);
+        });
+      }
+    }, 5000); // Check every 5 seconds
+
+    return () => clearInterval(checkInterval);
   }, [user]);
 
   const value: AuthContextType = {
