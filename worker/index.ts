@@ -152,11 +152,19 @@ app.use('/api/*', cors({
 
 // Error handling middleware
 app.onError((err, c) => {
+  console.error('=== GLOBAL ERROR HANDLER ===');
   console.error('Error:', err);
+  console.error('Error message:', err.message);
+  console.error('Error stack:', err.stack);
+  console.error('Request path:', c.req.path);
+  console.error('Request method:', c.req.method);
+  console.error('===========================');
+  
   return c.json(
     {
       error: 'Internal Server Error',
       message: err.message,
+      stack: err.stack,
     },
     500
   );
@@ -190,11 +198,17 @@ app.get('/api/version', async (c) => {
 
     return c.json(response);
   } catch (error) {
-    console.error('Database error in /api/version:', error);
+    console.error('=== DATABASE ERROR in /api/version ===');
+    console.error('Error:', error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error('====================================');
+    
     return c.json(
       { 
         error: "Database error", 
-        message: error instanceof Error ? error.message : String(error) 
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
       },
       500
     );
@@ -220,11 +234,17 @@ app.get('/api/versions', async (c) => {
 
     return c.json({ versions });
   } catch (error) {
-    console.error('Database error in /api/versions:', error);
+    console.error('=== DATABASE ERROR in /api/versions ===');
+    console.error('Error:', error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error('======================================');
+    
     return c.json(
       { 
         error: "Database error", 
-        message: error instanceof Error ? error.message : String(error) 
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
       },
       500
     );
@@ -257,6 +277,8 @@ app.use('/api/protected/*', async (c, next) => {
   const idToken = getFirebaseToken(c);
 
   if (!idToken?.uid) {
+    console.error('=== USER SYNC ERROR: Missing UID ===');
+    console.error('idToken:', idToken);
     return c.json(
       {
         error: 'Unauthorized',
@@ -271,6 +293,8 @@ app.use('/api/protected/*', async (c, next) => {
 
   try {
     const now = new Date().toISOString();
+
+    console.log('Syncing user:', { userId, email: idToken.email });
 
     await c.env.DB.prepare(
       `INSERT INTO users (id, email, display_name, photo_url, created_at, last_login_at)
@@ -290,12 +314,21 @@ app.use('/api/protected/*', async (c, next) => {
         now
       )
       .run<UserRow>();
+      
+    console.log('User synced successfully:', userId);
   } catch (error) {
-    console.error('Error syncing user in /api/protected middleware:', error);
+    console.error('=== USER SYNC ERROR ===');
+    console.error('Error syncing user:', error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error('User data:', { userId, email: idToken.email });
+    console.error('======================');
+    
     return c.json(
       {
         error: 'Failed to sync user profile',
         message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
       },
       500
     );
@@ -406,13 +439,19 @@ app.post('/api/protected/tasks', async (c) => {
 
     return c.json(taskRowToResponse(task), 201);
   } catch (error) {
-    console.error('Error creating task:', error);
+    console.error('=== ERROR CREATING TASK ===');
+    console.error('Error:', error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error('Request body:', body);
+    console.error('User ID:', userId);
+    console.error('==========================');
+    
     return c.json(
       {
         error: 'Failed to create task',
         message: error instanceof Error ? error.message : String(error),
-        details: error instanceof Error ? error.stack : undefined,
+        stack: error instanceof Error ? error.stack : undefined,
       },
       500
     );
@@ -470,11 +509,19 @@ app.get('/api/protected/tasks', async (c) => {
 
     return c.json({ tasks });
   } catch (error) {
-    console.error('Error fetching tasks:', error);
+    console.error('=== ERROR FETCHING TASKS ===');
+    console.error('Error:', error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error('Query params:', c.req.query());
+    console.error('User ID:', getUserId(c));
+    console.error('===========================');
+    
     return c.json(
       {
         error: 'Failed to fetch tasks',
         message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
       },
       500
     );
@@ -499,11 +546,19 @@ app.get('/api/protected/tasks/:id', async (c) => {
 
     return c.json(taskRowToResponse(task));
   } catch (error) {
-    console.error('Error fetching task:', error);
+    console.error('=== ERROR FETCHING TASK ===');
+    console.error('Error:', error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error('Task ID:', c.req.param('id'));
+    console.error('User ID:', getUserId(c));
+    console.error('==========================');
+    
     return c.json(
       {
         error: 'Failed to fetch task',
         message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
       },
       500
     );
@@ -588,11 +643,20 @@ app.patch('/api/protected/tasks/:id', async (c) => {
 
     return c.json(taskRowToResponse(updatedTask));
   } catch (error) {
-    console.error('Error updating task:', error);
+    console.error('=== ERROR UPDATING TASK ===');
+    console.error('Error:', error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error('Task ID:', c.req.param('id'));
+    console.error('User ID:', getUserId(c));
+    console.error('Update body:', body);
+    console.error('==========================');
+    
     return c.json(
       {
         error: 'Failed to update task',
         message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
       },
       500
     );
@@ -624,11 +688,19 @@ app.delete('/api/protected/tasks/:id', async (c) => {
 
     return c.json({ message: 'Task archived successfully' });
   } catch (error) {
-    console.error('Error archiving task:', error);
+    console.error('=== ERROR ARCHIVING TASK ===');
+    console.error('Error:', error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error('Task ID:', c.req.param('id'));
+    console.error('User ID:', getUserId(c));
+    console.error('===========================');
+    
     return c.json(
       {
         error: 'Failed to archive task',
         message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
       },
       500
     );
@@ -663,11 +735,19 @@ app.delete('/api/protected/tasks/:id/permanent', async (c) => {
 
     return c.json({ message: 'Task permanently deleted' });
   } catch (error) {
-    console.error('Error permanently deleting task:', error);
+    console.error('=== ERROR PERMANENTLY DELETING TASK ===');
+    console.error('Error:', error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error('Task ID:', c.req.param('id'));
+    console.error('User ID:', getUserId(c));
+    console.error('======================================');
+    
     return c.json(
       {
         error: 'Failed to permanently delete task',
         message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
       },
       500
     );
