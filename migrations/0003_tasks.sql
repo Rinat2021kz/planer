@@ -12,11 +12,11 @@ CREATE TABLE IF NOT EXISTS tasks (
     status TEXT NOT NULL DEFAULT 'planned',       -- planned, in_progress, done, skipped, canceled
     is_archived INTEGER DEFAULT 0,                -- soft delete flag
     deleted_at TEXT,                              -- hard delete timestamp
-    recurrence_id TEXT,                           -- FK to recurrences table (optional)
+    recurrence_id TEXT,                           -- FK to recurrences table (will be added later)
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (recurrence_id) REFERENCES recurrences(id) ON DELETE SET NULL
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    -- Note: FK for recurrence_id will be added when recurrences table is created
 );
 
 -- Indexes for tasks table
