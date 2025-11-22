@@ -337,6 +337,8 @@ app.post('/api/protected/tasks', async (c) => {
     const userId = getUserId(c);
     const body = await c.req.json<TaskCreateInput>();
 
+    console.log('Creating task:', { userId, body });
+
     // Validate required fields
     if (!body.title || !body.start_at) {
       return c.json(
@@ -345,10 +347,34 @@ app.post('/api/protected/tasks', async (c) => {
       );
     }
 
+    // Generate UUID using Web Crypto API
     const taskId = crypto.randomUUID();
     const now = new Date().toISOString();
 
-    await c.env.DB.prepare(
+    // Convert start_at to ISO format if needed (from datetime-local format)
+    let startAt = body.start_at;
+    if (!startAt.includes('T') || !startAt.includes(':')) {
+      startAt = new Date(startAt).toISOString();
+    } else if (!startAt.endsWith('Z') && !startAt.includes('+')) {
+      // If it's datetime-local format (YYYY-MM-DDTHH:mm), convert to ISO
+      startAt = new Date(startAt).toISOString();
+    }
+
+    // Same for deadline_at
+    let deadlineAt = body.deadline_at;
+    if (deadlineAt && (!deadlineAt.endsWith('Z') && !deadlineAt.includes('+'))) {
+      deadlineAt = new Date(deadlineAt).toISOString();
+    }
+
+    console.log('Inserting task:', {
+      taskId,
+      userId,
+      title: body.title,
+      startAt,
+      deadlineAt,
+    });
+
+    const result = await c.env.DB.prepare(
       `INSERT INTO tasks (id, user_id, title, description, start_at, deadline_at, priority, status, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
@@ -357,8 +383,8 @@ app.post('/api/protected/tasks', async (c) => {
         userId,
         body.title,
         body.description ?? null,
-        body.start_at,
-        body.deadline_at ?? null,
+        startAt,
+        deadlineAt ?? null,
         body.priority ?? 'medium',
         body.status ?? 'planned',
         now,
@@ -366,9 +392,13 @@ app.post('/api/protected/tasks', async (c) => {
       )
       .run();
 
+    console.log('Insert result:', result);
+
     const task = await c.env.DB.prepare('SELECT * FROM tasks WHERE id = ?')
       .bind(taskId)
       .first<TaskRow>();
+
+    console.log('Retrieved task:', task);
 
     if (!task) {
       return c.json({ error: 'Failed to create task' }, 500);
@@ -377,10 +407,12 @@ app.post('/api/protected/tasks', async (c) => {
     return c.json(taskRowToResponse(task), 201);
   } catch (error) {
     console.error('Error creating task:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
     return c.json(
       {
         error: 'Failed to create task',
         message: error instanceof Error ? error.message : String(error),
+        details: error instanceof Error ? error.stack : undefined,
       },
       500
     );
