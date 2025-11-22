@@ -366,9 +366,12 @@ app.get('/api/protected/profile', (c) => {
 
 // Create task
 app.post('/api/protected/tasks', async (c) => {
+  let userId: string | undefined;
+  let body: TaskCreateInput | undefined;
+  
   try {
-    const userId = getUserId(c);
-    const body = await c.req.json<TaskCreateInput>();
+    userId = getUserId(c);
+    body = await c.req.json<TaskCreateInput>();
 
     console.log('Creating task:', { userId, body });
 
@@ -514,7 +517,6 @@ app.get('/api/protected/tasks', async (c) => {
     console.error('Error message:', error instanceof Error ? error.message : String(error));
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
     console.error('Query params:', c.req.query());
-    console.error('User ID:', getUserId(c));
     console.error('===========================');
     
     return c.json(
@@ -551,7 +553,6 @@ app.get('/api/protected/tasks/:id', async (c) => {
     console.error('Error message:', error instanceof Error ? error.message : String(error));
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
     console.error('Task ID:', c.req.param('id'));
-    console.error('User ID:', getUserId(c));
     console.error('==========================');
     
     return c.json(
@@ -567,10 +568,13 @@ app.get('/api/protected/tasks/:id', async (c) => {
 
 // Update task
 app.patch('/api/protected/tasks/:id', async (c) => {
+  let userId: string | undefined;
+  let body: TaskUpdateInput | undefined;
+  
   try {
-    const userId = getUserId(c);
+    userId = getUserId(c);
     const taskId = c.req.param('id');
-    const body = await c.req.json<TaskUpdateInput>();
+    body = await c.req.json<TaskUpdateInput>();
 
     // Check if task exists and belongs to user
     const existingTask = await c.env.DB.prepare(
@@ -648,7 +652,7 @@ app.patch('/api/protected/tasks/:id', async (c) => {
     console.error('Error message:', error instanceof Error ? error.message : String(error));
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
     console.error('Task ID:', c.req.param('id'));
-    console.error('User ID:', getUserId(c));
+    console.error('User ID:', userId);
     console.error('Update body:', body);
     console.error('==========================');
     
@@ -693,7 +697,6 @@ app.delete('/api/protected/tasks/:id', async (c) => {
     console.error('Error message:', error instanceof Error ? error.message : String(error));
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
     console.error('Task ID:', c.req.param('id'));
-    console.error('User ID:', getUserId(c));
     console.error('===========================');
     
     return c.json(
@@ -740,7 +743,6 @@ app.delete('/api/protected/tasks/:id/permanent', async (c) => {
     console.error('Error message:', error instanceof Error ? error.message : String(error));
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
     console.error('Task ID:', c.req.param('id'));
-    console.error('User ID:', getUserId(c));
     console.error('======================================');
     
     return c.json(
