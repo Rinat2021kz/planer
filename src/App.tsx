@@ -6,12 +6,6 @@ import {
   BottomNavigation,
   BottomNavigationAction,
   Box,
-  Button,
-  Card,
-  CardActions,
-  CardContent,
-  CardHeader,
-  Container,
   Drawer,
   Divider,
   IconButton,
@@ -20,9 +14,7 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Modal,
   Paper,
-  Stack,
   Switch,
   Toolbar,
   Typography,
@@ -34,10 +26,7 @@ import {
   Favorite as FavoriteIcon,
   Person as PersonIcon,
   Settings as SettingsIcon,
-  Mail as MailIcon,
   Notifications as NotificationsIcon,
-  Dashboard as DashboardIcon,
-  Info as InfoIcon,
   LightMode as LightModeIcon,
   DarkMode as DarkModeIcon,
   Logout as LogoutIcon,
@@ -54,9 +43,7 @@ function App() {
   const { mode, toggleTheme } = useThemeContext()
   const { user, loading, logout } = useAuth()
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [modalOpen, setModalOpen] = useState(false)
   const [bottomNavValue, setBottomNavValue] = useState(0)
-  const [name, setName] = useState('unknown')
   const [authView, setAuthView] = useState<'login' | 'register' | 'forgot-password'>('login')
 
   // Show loading spinner while checking auth state
@@ -100,9 +87,6 @@ function App() {
     setDrawerOpen(open)
   }
 
-  const handleModalOpen = () => setModalOpen(true)
-  const handleModalClose = () => setModalOpen(false)
-
   const handleLogout = async () => {
     try {
       await logout()
@@ -120,7 +104,6 @@ function App() {
 
   return (
     <Box sx={{ pb: 7 }}>
-      {/* AppBar - Navigation */}
       <AppBar position="fixed" sx={{ top: 0 }}>
         <Toolbar>
           <IconButton
@@ -161,7 +144,6 @@ function App() {
         </Toolbar>
       </AppBar>
 
-      {/* Drawer - Боковое меню */}
       <Drawer anchor="left" open={drawerOpen} onClose={toggleDrawer(false)}>
         <Box sx={{ width: 250 }} role="presentation">
           <Box sx={{ p: 2, textAlign: 'center', bgcolor: 'primary.main', color: 'white' }}>
@@ -226,178 +208,6 @@ function App() {
         </Box>
       </Drawer>
 
-      {/* Main Content */}
-      <Container maxWidth="sm" sx={{ mt: 10, mb: 2 }}>
-        <Typography variant="h4" component="h1" gutterBottom align="center">
-          MUI Компоненты
-        </Typography>
-        <Typography variant="body1" color="text.secondary" align="center" paragraph>
-          Демонстрация основных компонентов Material UI с mobile-first подходом
-        </Typography>
-
-        <Stack spacing={3}>
-          {/* Card 1 - API Demo */}
-          <Card elevation={3}>
-            <CardHeader
-              avatar={
-                <Avatar sx={{ bgcolor: 'primary.main' }}>
-                  <DashboardIcon />
-                </Avatar>
-              }
-              title="API Интеграция"
-              subheader="Cloudflare Workers"
-            />
-            <CardContent>
-              <Typography variant="body2" color="text.secondary">
-                Получите данные из Worker API:
-              </Typography>
-              <Typography variant="h6" sx={{ mt: 1 }}>
-                Name: {name}
-              </Typography>
-            </CardContent>
-            <CardActions>
-              <Button
-                size="small"
-                variant="contained"
-                onClick={async () => {
-                  try {
-                    const token = localStorage.getItem('firebaseToken')
-                    const response = await fetch('/api/protected', {
-                      headers: {
-                        Authorization: `Bearer ${token}`,
-                      },
-                    })
-                    const data = await response.json() as { name?: string; email?: string }
-                    if (data.name) {
-                      setName(data.name)
-                    }
-                  } catch (error) {
-                    console.error('Error fetching data:', error)
-                  }
-                }}
-              >
-                Получить данные
-              </Button>
-            </CardActions>
-          </Card>
-
-          {/* Card 2 - Modal Demo */}
-          <Card elevation={3}>
-            <CardHeader
-              avatar={
-                <Badge badgeContent={2} color="secondary">
-                  <Avatar sx={{ bgcolor: 'secondary.main' }}>
-                    <InfoIcon />
-                  </Avatar>
-                </Badge>
-              }
-              title="Модальное окно"
-              subheader="Демонстрация Modal компонента"
-            />
-            <CardContent>
-              <Typography variant="body2" color="text.secondary">
-                Нажмите на кнопку, чтобы открыть модальное окно с дополнительной информацией.
-              </Typography>
-            </CardContent>
-            <CardActions>
-              <Button size="small" variant="outlined" onClick={handleModalOpen}>
-                Открыть Modal
-              </Button>
-            </CardActions>
-          </Card>
-
-          {/* Card 3 - Avatars with Badges */}
-          <Card elevation={3}>
-            <CardHeader
-              title="Аватары с Badge"
-              subheader="Различные комбинации"
-            />
-            <CardContent>
-              <Stack direction="row" spacing={2} justifyContent="center" flexWrap="wrap">
-                <Badge badgeContent={4} color="primary">
-                  <Avatar sx={{ bgcolor: 'primary.main' }}>
-                    <MailIcon />
-                  </Avatar>
-                </Badge>
-                <Badge badgeContent={99} color="error">
-                  <Avatar sx={{ bgcolor: 'error.main' }}>U</Avatar>
-                </Badge>
-                <Badge
-                  overlap="circular"
-                  anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                  variant="dot"
-                  color="success"
-                >
-                  <Avatar src="https://i.pravatar.cc/150?img=1" />
-                </Badge>
-                <Badge badgeContent="New" color="secondary">
-                  <Avatar sx={{ bgcolor: 'warning.main' }}>
-                    <NotificationsIcon />
-                  </Avatar>
-                </Badge>
-              </Stack>
-            </CardContent>
-          </Card>
-
-          {/* Card 4 - Navigation Info */}
-          <Card elevation={3}>
-            <CardHeader
-              avatar={
-                <Avatar sx={{ bgcolor: 'success.main' }}>
-                  <MenuIcon />
-                </Avatar>
-              }
-              title="Навигация"
-              subheader="Drawer и BottomNavigation"
-            />
-            <CardContent>
-              <Typography variant="body2" color="text.secondary" paragraph>
-                • Нажмите на иконку меню ☰ вверху, чтобы открыть боковое меню (Drawer)
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                • Используйте нижнюю навигацию (BottomNavigation) для переключения между разделами
-              </Typography>
-            </CardContent>
-          </Card>
-        </Stack>
-      </Container>
-
-      {/* Modal */}
-      <Modal
-        open={modalOpen}
-        onClose={handleModalClose}
-        aria-labelledby="modal-title"
-        aria-describedby="modal-description"
-      >
-        <Paper
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: { xs: '90%', sm: 400 },
-            maxWidth: 400,
-            p: 4,
-            borderRadius: 2,
-          }}
-        >
-          <Typography id="modal-title" variant="h6" component="h2" gutterBottom>
-            Модальное окно
-          </Typography>
-          <Typography id="modal-description" variant="body1" paragraph>
-            Это демонстрация модального окна Material UI. Модальные окна отлично подходят для
-            отображения важной информации или форм без перехода на новую страницу.
-          </Typography>
-          <Stack direction="row" spacing={2} justifyContent="flex-end">
-            <Button onClick={handleModalClose}>Отмена</Button>
-            <Button variant="contained" onClick={handleModalClose}>
-              Понятно
-            </Button>
-          </Stack>
-        </Paper>
-      </Modal>
-
-      {/* Bottom Navigation */}
       <Paper
         sx={{ position: 'fixed', bottom: 0, left: 0, right: 0 }}
         elevation={3}
