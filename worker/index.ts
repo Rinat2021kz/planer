@@ -47,6 +47,90 @@ type VersionListResponse = {
   createdAt: string;
 };
 
+type UserRow = {
+  id: string;
+  email: string | null;
+  display_name: string | null;
+  photo_url: string | null;
+  created_at: string;
+  last_login_at: string | null;
+};
+
+type TaskRow = {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  start_at: string;
+  deadline_at: string | null;
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  status: 'planned' | 'in_progress' | 'done' | 'skipped' | 'canceled';
+  is_archived: number;
+  deleted_at: string | null;
+  recurrence_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type TaskCreateInput = {
+  title: string;
+  description?: string;
+  start_at: string;
+  deadline_at?: string;
+  priority?: 'low' | 'medium' | 'high' | 'critical';
+  status?: 'planned' | 'in_progress' | 'done' | 'skipped' | 'canceled';
+};
+
+type TaskUpdateInput = {
+  title?: string;
+  description?: string;
+  start_at?: string;
+  deadline_at?: string;
+  priority?: 'low' | 'medium' | 'high' | 'critical';
+  status?: 'planned' | 'in_progress' | 'done' | 'skipped' | 'canceled';
+  is_archived?: boolean;
+};
+
+type TaskResponse = {
+  id: string;
+  userId: string;
+  title: string;
+  description: string | null;
+  startAt: string;
+  deadlineAt: string | null;
+  priority: string;
+  status: string;
+  isArchived: boolean;
+  recurrenceId: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+// Helper function to get userId from context
+const getUserId = (c: any): string => {
+  const userId = c.get('userId');
+  if (!userId) {
+    throw new Error('User ID not found in context');
+  }
+  return userId;
+};
+
+// Helper function to convert TaskRow to TaskResponse
+const taskRowToResponse = (row: TaskRow): TaskResponse => ({
+  id: row.id,
+  userId: row.user_id,
+  title: row.title,
+  description: row.description,
+  startAt: row.start_at,
+  deadlineAt: row.deadline_at,
+  priority: row.priority,
+  status: row.status,
+  isArchived: row.is_archived === 1,
+  recurrenceId: row.recurrence_id,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
 // Firebase Auth configuration
 const firebaseAuthConfig: VerifyFirebaseAuthConfig = {
   projectId: 'planer-8edbd',
@@ -168,27 +252,394 @@ app.use('/api/protected/*', async (c, next) => {
   await next();
 });
 
+// User sync middleware: ensure user exists in D1 and attach userId to context
+app.use('/api/protected/*', async (c, next) => {
+  const idToken = getFirebaseToken(c);
+
+  if (!idToken?.uid) {
+    return c.json(
+      {
+        error: 'Unauthorized',
+        message: 'Missing or invalid Firebase user identifier.',
+      },
+      401
+    );
+  }
+
+  const userId = idToken.uid;
+  c.set('userId', userId);
+
+  try {
+    const now = new Date().toISOString();
+
+    await c.env.DB.prepare(
+      `INSERT INTO users (id, email, display_name, photo_url, created_at, last_login_at)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         email = excluded.email,
+         display_name = excluded.display_name,
+         photo_url = excluded.photo_url,
+         last_login_at = excluded.last_login_at`
+    )
+      .bind(
+        userId,
+        idToken.email ?? null,
+        idToken.name ?? null,
+        idToken.picture ?? null,
+        now,
+        now
+      )
+      .run<UserRow>();
+  } catch (error) {
+    console.error('Error syncing user in /api/protected middleware:', error);
+    return c.json(
+      {
+        error: 'Failed to sync user profile',
+        message: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+
+  await next();
+});
+
 // Protected endpoint example
 app.get('/api/protected', (c) => {
+  const userId = getUserId(c);
   const idToken = getFirebaseToken(c);
   return c.json({
     name: "Rinat",
     message: "API is running",
     email: idToken?.email,
-    userId: idToken?.uid,
+    userId: userId,
   });
 });
 
 // Protected endpoint: User profile
 app.get('/api/protected/profile', (c) => {
+  const userId = getUserId(c);
   const idToken = getFirebaseToken(c);
   return c.json({
-    uid: idToken?.uid,
+    uid: userId,
     email: idToken?.email,
     emailVerified: idToken?.email_verified,
     name: idToken?.name,
     picture: idToken?.picture,
   });
+});
+
+// ===== TASKS ENDPOINTS =====
+
+// Create task
+app.post('/api/protected/tasks', async (c) => {
+  try {
+    const userId = getUserId(c);
+    const body = await c.req.json<TaskCreateInput>();
+
+    // Validate required fields
+    if (!body.title || !body.start_at) {
+      return c.json(
+        { error: 'Missing required fields: title, start_at' },
+        400
+      );
+    }
+
+    const taskId = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    await c.env.DB.prepare(
+      `INSERT INTO tasks (id, user_id, title, description, start_at, deadline_at, priority, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        taskId,
+        userId,
+        body.title,
+        body.description ?? null,
+        body.start_at,
+        body.deadline_at ?? null,
+        body.priority ?? 'medium',
+        body.status ?? 'planned',
+        now,
+        now
+      )
+      .run();
+
+    const task = await c.env.DB.prepare('SELECT * FROM tasks WHERE id = ?')
+      .bind(taskId)
+      .first<TaskRow>();
+
+    if (!task) {
+      return c.json({ error: 'Failed to create task' }, 500);
+    }
+
+    return c.json(taskRowToResponse(task), 201);
+  } catch (error) {
+    console.error('Error creating task:', error);
+    return c.json(
+      {
+        error: 'Failed to create task',
+        message: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
+// Get tasks with filters
+app.get('/api/protected/tasks', async (c) => {
+  try {
+    const userId = getUserId(c);
+    const { from, to, status, priority, archived } = c.req.query();
+
+    let query = 'SELECT * FROM tasks WHERE user_id = ? AND deleted_at IS NULL';
+    const params: any[] = [userId];
+
+    // Filter by archived status
+    if (archived === 'true') {
+      query += ' AND is_archived = 1';
+    } else if (archived === 'false') {
+      query += ' AND is_archived = 0';
+    } else {
+      // Default: only non-archived
+      query += ' AND is_archived = 0';
+    }
+
+    // Filter by date range
+    if (from) {
+      query += ' AND start_at >= ?';
+      params.push(from);
+    }
+    if (to) {
+      query += ' AND start_at <= ?';
+      params.push(to);
+    }
+
+    // Filter by status
+    if (status) {
+      query += ' AND status = ?';
+      params.push(status);
+    }
+
+    // Filter by priority
+    if (priority) {
+      query += ' AND priority = ?';
+      params.push(priority);
+    }
+
+    query += ' ORDER BY start_at ASC';
+
+    const { results } = await c.env.DB.prepare(query)
+      .bind(...params)
+      .all<TaskRow>();
+
+    const tasks = results.map(taskRowToResponse);
+
+    return c.json({ tasks });
+  } catch (error) {
+    console.error('Error fetching tasks:', error);
+    return c.json(
+      {
+        error: 'Failed to fetch tasks',
+        message: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
+// Get single task by ID
+app.get('/api/protected/tasks/:id', async (c) => {
+  try {
+    const userId = getUserId(c);
+    const taskId = c.req.param('id');
+
+    const task = await c.env.DB.prepare(
+      'SELECT * FROM tasks WHERE id = ? AND user_id = ? AND deleted_at IS NULL'
+    )
+      .bind(taskId, userId)
+      .first<TaskRow>();
+
+    if (!task) {
+      return c.json({ error: 'Task not found' }, 404);
+    }
+
+    return c.json(taskRowToResponse(task));
+  } catch (error) {
+    console.error('Error fetching task:', error);
+    return c.json(
+      {
+        error: 'Failed to fetch task',
+        message: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
+// Update task
+app.patch('/api/protected/tasks/:id', async (c) => {
+  try {
+    const userId = getUserId(c);
+    const taskId = c.req.param('id');
+    const body = await c.req.json<TaskUpdateInput>();
+
+    // Check if task exists and belongs to user
+    const existingTask = await c.env.DB.prepare(
+      'SELECT * FROM tasks WHERE id = ? AND user_id = ? AND deleted_at IS NULL'
+    )
+      .bind(taskId, userId)
+      .first<TaskRow>();
+
+    if (!existingTask) {
+      return c.json({ error: 'Task not found' }, 404);
+    }
+
+    // Build update query dynamically
+    const updates: string[] = [];
+    const params: any[] = [];
+
+    if (body.title !== undefined) {
+      updates.push('title = ?');
+      params.push(body.title);
+    }
+    if (body.description !== undefined) {
+      updates.push('description = ?');
+      params.push(body.description);
+    }
+    if (body.start_at !== undefined) {
+      updates.push('start_at = ?');
+      params.push(body.start_at);
+    }
+    if (body.deadline_at !== undefined) {
+      updates.push('deadline_at = ?');
+      params.push(body.deadline_at);
+    }
+    if (body.priority !== undefined) {
+      updates.push('priority = ?');
+      params.push(body.priority);
+    }
+    if (body.status !== undefined) {
+      updates.push('status = ?');
+      params.push(body.status);
+    }
+    if (body.is_archived !== undefined) {
+      updates.push('is_archived = ?');
+      params.push(body.is_archived ? 1 : 0);
+    }
+
+    if (updates.length === 0) {
+      return c.json({ error: 'No fields to update' }, 400);
+    }
+
+    updates.push('updated_at = ?');
+    params.push(new Date().toISOString());
+
+    params.push(taskId, userId);
+
+    await c.env.DB.prepare(
+      `UPDATE tasks SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`
+    )
+      .bind(...params)
+      .run();
+
+    const updatedTask = await c.env.DB.prepare(
+      'SELECT * FROM tasks WHERE id = ? AND user_id = ?'
+    )
+      .bind(taskId, userId)
+      .first<TaskRow>();
+
+    if (!updatedTask) {
+      return c.json({ error: 'Failed to update task' }, 500);
+    }
+
+    return c.json(taskRowToResponse(updatedTask));
+  } catch (error) {
+    console.error('Error updating task:', error);
+    return c.json(
+      {
+        error: 'Failed to update task',
+        message: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
+// Soft delete (archive) task
+app.delete('/api/protected/tasks/:id', async (c) => {
+  try {
+    const userId = getUserId(c);
+    const taskId = c.req.param('id');
+
+    const task = await c.env.DB.prepare(
+      'SELECT * FROM tasks WHERE id = ? AND user_id = ? AND deleted_at IS NULL'
+    )
+      .bind(taskId, userId)
+      .first<TaskRow>();
+
+    if (!task) {
+      return c.json({ error: 'Task not found' }, 404);
+    }
+
+    // Soft delete: set is_archived = 1
+    await c.env.DB.prepare(
+      'UPDATE tasks SET is_archived = 1, updated_at = ? WHERE id = ? AND user_id = ?'
+    )
+      .bind(new Date().toISOString(), taskId, userId)
+      .run();
+
+    return c.json({ message: 'Task archived successfully' });
+  } catch (error) {
+    console.error('Error archiving task:', error);
+    return c.json(
+      {
+        error: 'Failed to archive task',
+        message: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
+// Hard delete task (only for archived tasks)
+app.delete('/api/protected/tasks/:id/permanent', async (c) => {
+  try {
+    const userId = getUserId(c);
+    const taskId = c.req.param('id');
+
+    const task = await c.env.DB.prepare(
+      'SELECT * FROM tasks WHERE id = ? AND user_id = ? AND is_archived = 1 AND deleted_at IS NULL'
+    )
+      .bind(taskId, userId)
+      .first<TaskRow>();
+
+    if (!task) {
+      return c.json(
+        { error: 'Task not found or not archived' },
+        404
+      );
+    }
+
+    // Hard delete: set deleted_at timestamp
+    await c.env.DB.prepare(
+      'UPDATE tasks SET deleted_at = ? WHERE id = ? AND user_id = ?'
+    )
+      .bind(new Date().toISOString(), taskId, userId)
+      .run();
+
+    return c.json({ message: 'Task permanently deleted' });
+  } catch (error) {
+    console.error('Error permanently deleting task:', error);
+    return c.json(
+      {
+        error: 'Failed to permanently delete task',
+        message: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
 });
 
 // 404 handler

@@ -12,10 +12,10 @@ CREATE TABLE IF NOT EXISTS app_version (
 );
 
 -- Создадим индекс для быстрого поиска активной версии
-CREATE INDEX idx_app_version_is_active ON app_version(is_active);
+CREATE INDEX IF NOT EXISTS idx_app_version_is_active ON app_version(is_active);
 
--- Вставим тестовую запись с начальной версией
-INSERT INTO app_version (version, build_number, release_date, description) 
+-- Вставим тестовую запись с начальной версией (только если таблица пустая)
+INSERT OR IGNORE INTO app_version (version, build_number, release_date, description) 
 VALUES ('1.0.0', 1, datetime('now'), 'Начальная версия приложения');
 
 

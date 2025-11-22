@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import {
   AppBar,
   Avatar,
@@ -22,14 +23,15 @@ import {
 } from '@mui/material'
 import {
   Menu as MenuIcon,
-  Home as HomeIcon,
-  Favorite as FavoriteIcon,
   Person as PersonIcon,
   Settings as SettingsIcon,
   Notifications as NotificationsIcon,
   LightMode as LightModeIcon,
   DarkMode as DarkModeIcon,
   Logout as LogoutIcon,
+  Today as TodayIcon,
+  CalendarMonth as CalendarMonthIcon,
+  DateRange as DateRangeIcon,
 } from '@mui/icons-material'
 import { useThemeContext } from './ThemeContext'
 import { useAuth } from './AuthContext'
@@ -37,51 +39,29 @@ import { Login } from './components/Login'
 import { Register } from './components/Register'
 import { VerifyEmail } from './components/VerifyEmail'
 import { ForgotPassword } from './components/ForgotPassword'
+import { TodayPage } from './pages/TodayPage'
+import { WeekPage } from './pages/WeekPage'
+import { MonthPage } from './pages/MonthPage'
 import './App.css'
 
-function App() {
+// Main authenticated app layout component
+const AppLayout = () => {
   const { mode, toggleTheme } = useThemeContext()
-  const { user, loading, logout } = useAuth()
+  const { user, logout } = useAuth()
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [bottomNavValue, setBottomNavValue] = useState(0)
-  const [authView, setAuthView] = useState<'login' | 'register' | 'forgot-password'>('login')
+  const navigate = useNavigate()
+  const location = useLocation()
 
-  // Show loading spinner while checking auth state
-  if (loading) {
-    return (
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          minHeight: '100vh',
-        }}
-      >
-        <CircularProgress />
-      </Box>
-    )
+  // Get bottom navigation value based on current route
+  const getBottomNavValue = () => {
+    if (location.pathname === '/today') return 0
+    if (location.pathname === '/week') return 1
+    if (location.pathname === '/month') return 2
+    return 0
   }
 
-  // Show login/register/forgot-password if user is not authenticated
-  if (!user) {
-    if (authView === 'login') {
-      return (
-        <Login
-          onSwitchToRegister={() => setAuthView('register')}
-          onSwitchToForgotPassword={() => setAuthView('forgot-password')}
-        />
-      )
-    } else if (authView === 'register') {
-      return <Register onSwitchToLogin={() => setAuthView('login')} />
-    } else {
-      return <ForgotPassword onBackToLogin={() => setAuthView('login')} />
-    }
-  }
+  const [bottomNavValue, setBottomNavValue] = useState(getBottomNavValue())
 
-  // Show email verification screen if email is not verified
-  if (!user.emailVerified) {
-    return <VerifyEmail />
-  }
 
   const toggleDrawer = (open: boolean) => () => {
     setDrawerOpen(open)
@@ -96,11 +76,17 @@ function App() {
   }
 
   const menuItems = [
-    { text: 'Главная', icon: <HomeIcon /> },
-    { text: 'Избранное', icon: <FavoriteIcon /> },
-    { text: 'Профиль', icon: <PersonIcon /> },
-    { text: 'Настройки', icon: <SettingsIcon /> },
+    { text: 'Сегодня', icon: <TodayIcon />, path: '/today' },
+    { text: 'Неделя', icon: <DateRangeIcon />, path: '/week' },
+    { text: 'Месяц', icon: <CalendarMonthIcon />, path: '/month' },
+    { text: 'Профиль', icon: <PersonIcon />, path: '/profile' },
+    { text: 'Настройки', icon: <SettingsIcon />, path: '/settings' },
   ]
+
+  const handleMenuClick = (path: string) => {
+    navigate(path)
+    setDrawerOpen(false)
+  }
 
   return (
     <Box sx={{ pb: 7 }}>
@@ -181,10 +167,10 @@ function App() {
           <Divider />
 
           {/* Основное меню */}
-          <List onClick={toggleDrawer(false)} onKeyDown={toggleDrawer(false)}>
+          <List>
             {menuItems.map((item) => (
               <ListItem key={item.text} disablePadding>
-                <ListItemButton>
+                <ListItemButton onClick={() => handleMenuClick(item.path)}>
                   <ListItemIcon>{item.icon}</ListItemIcon>
                   <ListItemText primary={item.text} />
                 </ListItemButton>
@@ -208,8 +194,20 @@ function App() {
         </Box>
       </Drawer>
 
+      {/* Main content */}
+      <Box sx={{ mt: 8 }}>
+        <Routes>
+          <Route path="/" element={<Navigate to="/today" replace />} />
+          <Route path="/today" element={<TodayPage />} />
+          <Route path="/week" element={<WeekPage />} />
+          <Route path="/month" element={<MonthPage />} />
+          <Route path="/profile" element={<Box sx={{ p: 2 }}><Typography>Профиль</Typography></Box>} />
+          <Route path="/settings" element={<Box sx={{ p: 2 }}><Typography>Настройки</Typography></Box>} />
+        </Routes>
+      </Box>
+
       <Paper
-        sx={{ position: 'fixed', bottom: 0, left: 0, right: 0 }}
+        sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1000 }}
         elevation={3}
       >
         <BottomNavigation
@@ -217,15 +215,67 @@ function App() {
           value={bottomNavValue}
           onChange={(_event, newValue) => {
             setBottomNavValue(newValue)
+            const routes = ['/today', '/week', '/month']
+            if (routes[newValue]) {
+              navigate(routes[newValue])
+            }
           }}
         >
-          <BottomNavigationAction label="Главная" icon={<HomeIcon />} />
-          <BottomNavigationAction label="Избранное" icon={<FavoriteIcon />} />
-          <BottomNavigationAction label="Профиль" icon={<PersonIcon />} />
-          <BottomNavigationAction label="Настройки" icon={<SettingsIcon />} />
+          <BottomNavigationAction label="Сегодня" icon={<TodayIcon />} />
+          <BottomNavigationAction label="Неделя" icon={<DateRangeIcon />} />
+          <BottomNavigationAction label="Месяц" icon={<CalendarMonthIcon />} />
         </BottomNavigation>
       </Paper>
     </Box>
+  )
+}
+
+// Main App component with router
+function App() {
+  const { user, loading } = useAuth()
+  const [authView, setAuthView] = useState<'login' | 'register' | 'forgot-password'>('login')
+
+  // Show loading spinner while checking auth state
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    )
+  }
+
+  // Show login/register/forgot-password if user is not authenticated
+  if (!user) {
+    if (authView === 'login') {
+      return (
+        <Login
+          onSwitchToRegister={() => setAuthView('register')}
+          onSwitchToForgotPassword={() => setAuthView('forgot-password')}
+        />
+      )
+    } else if (authView === 'register') {
+      return <Register onSwitchToLogin={() => setAuthView('login')} />
+    } else {
+      return <ForgotPassword onBackToLogin={() => setAuthView('login')} />
+    }
+  }
+
+  // Show email verification screen if email is not verified
+  if (!user.emailVerified) {
+    return <VerifyEmail />
+  }
+
+  return (
+    <BrowserRouter>
+      <AppLayout />
+    </BrowserRouter>
   )
 }
 
