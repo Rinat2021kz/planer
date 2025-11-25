@@ -42,6 +42,8 @@ import { ForgotPassword } from './components/ForgotPassword'
 import { TodayPage } from './pages/TodayPage'
 import { WeekPage } from './pages/WeekPage'
 import { MonthPage } from './pages/MonthPage'
+import { SettingsPage } from './pages/SettingsPage'
+import { TaskDetailPage } from './pages/TaskDetailPage'
 import './App.css'
 
 // Main authenticated app layout component
@@ -201,8 +203,9 @@ const AppLayout = () => {
           <Route path="/today" element={<TodayPage />} />
           <Route path="/week" element={<WeekPage />} />
           <Route path="/month" element={<MonthPage />} />
+          <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
           <Route path="/profile" element={<Box sx={{ p: 2 }}><Typography>Профиль</Typography></Box>} />
-          <Route path="/settings" element={<Box sx={{ p: 2 }}><Typography>Настройки</Typography></Box>} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </Box>
 

@@ -1,7 +1,9 @@
 // API client for tasks
 
+import type { Tag } from './tags';
+
 const API_BASE_URL = import.meta.env.DEV 
-  ? 'http://localhost:8787' 
+  ? '' 
   : '';
 
 export type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
@@ -20,6 +22,7 @@ export type Task = {
   recurrenceId: string | null;
   createdAt: string;
   updatedAt: string;
+  tags?: Tag[];
 };
 
 export type CreateTaskInput = {
@@ -47,6 +50,8 @@ export type TasksFilter = {
   status?: TaskStatus;
   priority?: TaskPriority;
   archived?: 'true' | 'false';
+  search?: string;
+  tags?: string; // Comma-separated tag IDs
 };
 
 // Helper to get auth token from localStorage

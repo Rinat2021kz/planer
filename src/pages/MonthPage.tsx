@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -6,13 +7,17 @@ import {
   Alert,
 } from '@mui/material';
 import { TaskCard } from '../components/TaskCard';
+import { TaskFilters } from '../components/TaskFilters';
+import type { TaskFiltersValue } from '../components/TaskFilters';
 import { getTasks, updateTask, archiveTask } from '../api/tasks';
 import type { Task } from '../api/tasks';
 
 export const MonthPage = () => {
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<TaskFiltersValue>({});
 
   // Get this month's date range
   const getMonthRange = () => {
@@ -35,6 +40,10 @@ export const MonthPage = () => {
         from: range.from,
         to: range.to,
         archived: 'false',
+        search: filters.search,
+        status: filters.status,
+        priority: filters.priority,
+        tags: filters.tagIds?.join(','),
       });
       setTasks(response.tasks);
     } catch (err) {
@@ -47,7 +56,7 @@ export const MonthPage = () => {
 
   useEffect(() => {
     loadTasks();
-  }, []);
+  }, [filters]);
 
   const handleStatusChange = async (taskId: string, newStatus: 'done' | 'planned') => {
     try {
@@ -89,6 +98,8 @@ export const MonthPage = () => {
         </Alert>
       )}
 
+      <TaskFilters value={filters} onChange={setFilters} />
+
       {tasks.length === 0 ? (
         <Typography variant="body1" color="text.secondary">
           Нет задач на этот месяц
@@ -100,6 +111,7 @@ export const MonthPage = () => {
             task={task}
             onStatusChange={handleStatusChange}
             onDelete={handleDelete}
+            onClick={(taskId) => navigate(`/tasks/${taskId}`)}
           />
         ))
       )}

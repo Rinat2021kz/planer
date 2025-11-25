@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -6,13 +7,17 @@ import {
   Alert,
 } from '@mui/material';
 import { TaskCard } from '../components/TaskCard';
+import { TaskFilters } from '../components/TaskFilters';
+import type { TaskFiltersValue } from '../components/TaskFilters';
 import { getTasks, updateTask, archiveTask } from '../api/tasks';
 import type { Task } from '../api/tasks';
 
 export const WeekPage = () => {
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<TaskFiltersValue>({});
 
   // Get this week's date range (Monday to Sunday)
   const getWeekRange = () => {
@@ -42,6 +47,10 @@ export const WeekPage = () => {
         from: range.from,
         to: range.to,
         archived: 'false',
+        search: filters.search,
+        status: filters.status,
+        priority: filters.priority,
+        tags: filters.tagIds?.join(','),
       });
       setTasks(response.tasks);
     } catch (err) {
@@ -54,7 +63,7 @@ export const WeekPage = () => {
 
   useEffect(() => {
     loadTasks();
-  }, []);
+  }, [filters]);
 
   const handleStatusChange = async (taskId: string, newStatus: 'done' | 'planned') => {
     try {
@@ -96,6 +105,8 @@ export const WeekPage = () => {
         </Alert>
       )}
 
+      <TaskFilters value={filters} onChange={setFilters} />
+
       {tasks.length === 0 ? (
         <Typography variant="body1" color="text.secondary">
           Нет задач на эту неделю
@@ -107,6 +118,7 @@ export const WeekPage = () => {
             task={task}
             onStatusChange={handleStatusChange}
             onDelete={handleDelete}
+            onClick={(taskId) => navigate(`/tasks/${taskId}`)}
           />
         ))
       )}

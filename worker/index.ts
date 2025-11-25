@@ -104,6 +104,125 @@ type TaskResponse = {
   recurrenceId: string | null;
   createdAt: string;
   updatedAt: string;
+  tags?: TagResponse[];
+};
+
+type TagRow = {
+  id: string;
+  user_id: string;
+  name: string;
+  color: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type TagCreateInput = {
+  name: string;
+  color?: string;
+};
+
+type TagUpdateInput = {
+  name?: string;
+  color?: string;
+};
+
+type TagResponse = {
+  id: string;
+  userId: string;
+  name: string;
+  color: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type RecurrenceType = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom' | 'workdays' | 'weekends';
+type RecurrenceEndType = 'never' | 'date' | 'count';
+
+type RecurrenceRow = {
+  id: string;
+  user_id: string;
+  type: RecurrenceType;
+  interval: number;
+  interval_unit: string | null;
+  weekdays: string | null;
+  month_day: number | null;
+  month_week: number | null;
+  month_weekday: string | null;
+  end_type: RecurrenceEndType;
+  end_date: string | null;
+  end_count: number | null;
+  start_date: string;
+  title: string;
+  description: string | null;
+  duration_minutes: number | null;
+  priority: string;
+  occurrences_generated: number;
+  last_generated_at: string | null;
+  is_active: number;
+  created_at: string;
+  updated_at: string;
+};
+
+type RecurrenceCreateInput = {
+  type: RecurrenceType;
+  interval?: number;
+  interval_unit?: 'days' | 'weeks' | 'months' | 'years';
+  weekdays?: string[]; // ["monday", "wednesday", "friday"]
+  month_day?: number;
+  month_week?: number;
+  month_weekday?: string;
+  end_type?: RecurrenceEndType;
+  end_date?: string;
+  end_count?: number;
+  start_date: string;
+  title: string;
+  description?: string;
+  duration_minutes?: number;
+  priority?: 'low' | 'medium' | 'high' | 'critical';
+};
+
+type RecurrenceUpdateInput = {
+  type?: RecurrenceType;
+  interval?: number;
+  interval_unit?: 'days' | 'weeks' | 'months' | 'years';
+  weekdays?: string[];
+  month_day?: number;
+  month_week?: number;
+  month_weekday?: string;
+  end_type?: RecurrenceEndType;
+  end_date?: string;
+  end_count?: number;
+  start_date?: string;
+  title?: string;
+  description?: string;
+  duration_minutes?: number;
+  priority?: 'low' | 'medium' | 'high' | 'critical';
+  is_active?: boolean;
+};
+
+type RecurrenceResponse = {
+  id: string;
+  userId: string;
+  type: RecurrenceType;
+  interval: number;
+  intervalUnit: string | null;
+  weekdays: string[] | null;
+  monthDay: number | null;
+  monthWeek: number | null;
+  monthWeekday: string | null;
+  endType: RecurrenceEndType;
+  endDate: string | null;
+  endCount: number | null;
+  startDate: string;
+  title: string;
+  description: string | null;
+  durationMinutes: number | null;
+  priority: string;
+  occurrencesGenerated: number;
+  lastGeneratedAt: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 // Helper function to get userId from context
@@ -130,6 +249,200 @@ const taskRowToResponse = (row: TaskRow): TaskResponse => ({
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
+
+// Helper function to convert TagRow to TagResponse
+const tagRowToResponse = (row: TagRow): TagResponse => ({
+  id: row.id,
+  userId: row.user_id,
+  name: row.name,
+  color: row.color,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+// Helper function to convert RecurrenceRow to RecurrenceResponse
+const recurrenceRowToResponse = (row: RecurrenceRow): RecurrenceResponse => ({
+  id: row.id,
+  userId: row.user_id,
+  type: row.type,
+  interval: row.interval,
+  intervalUnit: row.interval_unit,
+  weekdays: row.weekdays ? JSON.parse(row.weekdays) : null,
+  monthDay: row.month_day,
+  monthWeek: row.month_week,
+  monthWeekday: row.month_weekday,
+  endType: row.end_type,
+  endDate: row.end_date,
+  endCount: row.end_count,
+  startDate: row.start_date,
+  title: row.title,
+  description: row.description,
+  durationMinutes: row.duration_minutes,
+  priority: row.priority,
+  occurrencesGenerated: row.occurrences_generated,
+  lastGeneratedAt: row.last_generated_at,
+  isActive: row.is_active === 1,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+// Helper function to generate tasks from recurrences
+const generateTasksFromRecurrence = async (
+  db: D1Database,
+  recurrence: RecurrenceRow,
+  fromDate: Date,
+  toDate: Date
+): Promise<void> => {
+  // Calculate which dates in the range should have tasks
+  const dates: Date[] = [];
+  const currentDate = new Date(fromDate);
+  
+  while (currentDate <= toDate) {
+    const shouldGenerate = shouldGenerateTaskOnDate(recurrence, currentDate);
+    
+    if (shouldGenerate) {
+      // Check if task already exists for this date
+      const startOfDay = new Date(currentDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(currentDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      
+      const existing = await db.prepare(
+        `SELECT id FROM tasks WHERE recurrence_id = ? AND start_at >= ? AND start_at <= ?`
+      )
+        .bind(recurrence.id, startOfDay.toISOString(), endOfDay.toISOString())
+        .first();
+      
+      if (!existing) {
+        dates.push(new Date(currentDate));
+      }
+    }
+    
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  // Create tasks for dates
+  for (const date of dates) {
+    const taskId = crypto.randomUUID();
+    const now = new Date().toISOString();
+    
+    // Set time from recurrence start_date
+    const startTime = new Date(recurrence.start_date);
+    date.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
+    
+    let deadlineAt: string | null = null;
+    if (recurrence.duration_minutes) {
+      const deadline = new Date(date);
+      deadline.setMinutes(deadline.getMinutes() + recurrence.duration_minutes);
+      deadlineAt = deadline.toISOString();
+    }
+    
+    await db.prepare(
+      `INSERT INTO tasks (id, user_id, title, description, start_at, deadline_at, priority, status, recurrence_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        taskId,
+        recurrence.user_id,
+        recurrence.title,
+        recurrence.description,
+        date.toISOString(),
+        deadlineAt,
+        recurrence.priority,
+        'planned',
+        recurrence.id,
+        now,
+        now
+      )
+      .run();
+  }
+  
+  // Update recurrence stats
+  if (dates.length > 0) {
+    await db.prepare(
+      `UPDATE recurrences SET occurrences_generated = occurrences_generated + ?, last_generated_at = ?, updated_at = ? WHERE id = ?`
+    )
+      .bind(dates.length, new Date().toISOString(), new Date().toISOString(), recurrence.id)
+      .run();
+  }
+};
+
+const shouldGenerateTaskOnDate = (recurrence: RecurrenceRow, date: Date): boolean => {
+  const recurrenceStart = new Date(recurrence.start_date);
+  
+  // Check if before start date
+  if (date < recurrenceStart) {
+    return false;
+  }
+  
+  // Check end conditions
+  if (recurrence.end_type === 'date' && recurrence.end_date) {
+    if (date > new Date(recurrence.end_date)) {
+      return false;
+    }
+  }
+  
+  if (recurrence.end_type === 'count' && recurrence.end_count) {
+    if (recurrence.occurrences_generated >= recurrence.end_count) {
+      return false;
+    }
+  }
+  
+  const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+  
+  switch (recurrence.type) {
+    case 'daily':
+      return true;
+    
+    case 'workdays':
+      return dayOfWeek >= 1 && dayOfWeek <= 5; // Monday-Friday
+    
+    case 'weekends':
+      return dayOfWeek === 0 || dayOfWeek === 6; // Saturday-Sunday
+    
+    case 'weekly': {
+      if (!recurrence.weekdays) return false;
+      const weekdays: string[] = JSON.parse(recurrence.weekdays);
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      return weekdays.includes(dayNames[dayOfWeek]);
+    }
+    
+    case 'monthly': {
+      if (recurrence.month_day) {
+        return date.getDate() === recurrence.month_day;
+      }
+      return false;
+    }
+    
+    case 'yearly': {
+      const startMonth = recurrenceStart.getMonth();
+      const startDay = recurrenceStart.getDate();
+      return date.getMonth() === startMonth && date.getDate() === startDay;
+    }
+    
+    case 'custom': {
+      if (!recurrence.interval_unit) return false;
+      
+      const daysDiff = Math.floor((date.getTime() - recurrenceStart.getTime()) / (1000 * 60 * 60 * 24));
+      
+      switch (recurrence.interval_unit) {
+        case 'days':
+          return daysDiff % recurrence.interval === 0;
+        case 'weeks':
+          return daysDiff % (recurrence.interval * 7) === 0;
+        case 'months':
+          const monthsDiff = (date.getFullYear() - recurrenceStart.getFullYear()) * 12 + 
+                           (date.getMonth() - recurrenceStart.getMonth());
+          return monthsDiff % recurrence.interval === 0 && date.getDate() === recurrenceStart.getDate();
+        default:
+          return false;
+      }
+    }
+    
+    default:
+      return false;
+  }
+};
 
 // Firebase Auth configuration
 const firebaseAuthConfig: VerifyFirebaseAuthConfig = {
@@ -465,50 +778,104 @@ app.post('/api/protected/tasks', async (c) => {
 app.get('/api/protected/tasks', async (c) => {
   try {
     const userId = getUserId(c);
-    const { from, to, status, priority, archived } = c.req.query();
+    const { from, to, status, priority, archived, search, tags } = c.req.query();
 
-    let query = 'SELECT * FROM tasks WHERE user_id = ? AND deleted_at IS NULL';
-    const params: any[] = [userId];
+    // Generate tasks from active recurrences for the requested date range
+    if (from && to) {
+      const fromDate = new Date(from);
+      const toDate = new Date(to);
+      
+      const { results: activeRecurrences } = await c.env.DB.prepare(
+        'SELECT * FROM recurrences WHERE user_id = ? AND is_active = 1'
+      )
+        .bind(userId)
+        .all<RecurrenceRow>();
+      
+      for (const recurrence of activeRecurrences) {
+        await generateTasksFromRecurrence(c.env.DB, recurrence, fromDate, toDate);
+      }
+    }
+
+    let query = 'SELECT DISTINCT t.* FROM tasks t';
+    const params: any[] = [];
+
+    // Join with task_tags if filtering by tags
+    if (tags) {
+      query += ' INNER JOIN task_tags tt ON t.id = tt.task_id';
+    }
+
+    query += ' WHERE t.user_id = ? AND t.deleted_at IS NULL';
+    params.push(userId);
 
     // Filter by archived status
     if (archived === 'true') {
-      query += ' AND is_archived = 1';
+      query += ' AND t.is_archived = 1';
     } else if (archived === 'false') {
-      query += ' AND is_archived = 0';
+      query += ' AND t.is_archived = 0';
     } else {
       // Default: only non-archived
-      query += ' AND is_archived = 0';
+      query += ' AND t.is_archived = 0';
     }
 
     // Filter by date range
     if (from) {
-      query += ' AND start_at >= ?';
+      query += ' AND t.start_at >= ?';
       params.push(from);
     }
     if (to) {
-      query += ' AND start_at <= ?';
+      query += ' AND t.start_at <= ?';
       params.push(to);
     }
 
     // Filter by status
     if (status) {
-      query += ' AND status = ?';
+      query += ' AND t.status = ?';
       params.push(status);
     }
 
     // Filter by priority
     if (priority) {
-      query += ' AND priority = ?';
+      query += ' AND t.priority = ?';
       params.push(priority);
     }
 
-    query += ' ORDER BY start_at ASC';
+    // Search by title
+    if (search) {
+      query += ' AND t.title LIKE ?';
+      params.push(`%${search}%`);
+    }
+
+    // Filter by tags (comma-separated tag IDs)
+    if (tags) {
+      const tagIds = tags.split(',').filter(id => id.trim());
+      if (tagIds.length > 0) {
+        const placeholders = tagIds.map(() => '?').join(',');
+        query += ` AND tt.tag_id IN (${placeholders})`;
+        params.push(...tagIds);
+      }
+    }
+
+    query += ' ORDER BY t.start_at ASC';
 
     const { results } = await c.env.DB.prepare(query)
       .bind(...params)
       .all<TaskRow>();
 
     const tasks = results.map(taskRowToResponse);
+
+    // Fetch tags for each task
+    for (const task of tasks) {
+      const { results: tagResults } = await c.env.DB.prepare(
+        `SELECT t.* FROM tags t
+         INNER JOIN task_tags tt ON t.id = tt.tag_id
+         WHERE tt.task_id = ?
+         ORDER BY t.name ASC`
+      )
+        .bind(task.id)
+        .all<TagRow>();
+
+      task.tags = tagResults.map(tagRowToResponse);
+    }
 
     return c.json({ tasks });
   } catch (error) {
@@ -546,7 +913,21 @@ app.get('/api/protected/tasks/:id', async (c) => {
       return c.json({ error: 'Task not found' }, 404);
     }
 
-    return c.json(taskRowToResponse(task));
+    const taskResponse = taskRowToResponse(task);
+
+    // Fetch tags for task
+    const { results: tagResults } = await c.env.DB.prepare(
+      `SELECT t.* FROM tags t
+       INNER JOIN task_tags tt ON t.id = tt.tag_id
+       WHERE tt.task_id = ?
+       ORDER BY t.name ASC`
+    )
+      .bind(taskId)
+      .all<TagRow>();
+
+    taskResponse.tags = tagResults.map(tagRowToResponse);
+
+    return c.json(taskResponse);
   } catch (error) {
     console.error('=== ERROR FETCHING TASK ===');
     console.error('Error:', error);
@@ -750,6 +1131,810 @@ app.delete('/api/protected/tasks/:id/permanent', async (c) => {
         error: 'Failed to permanently delete task',
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
+      },
+      500
+    );
+  }
+});
+
+// ===== TAGS ENDPOINTS =====
+
+// Get all tags for current user
+app.get('/api/protected/tags', async (c) => {
+  try {
+    const userId = getUserId(c);
+
+    const { results } = await c.env.DB.prepare(
+      'SELECT * FROM tags WHERE user_id = ? ORDER BY name ASC'
+    )
+      .bind(userId)
+      .all<TagRow>();
+
+    const tags = results.map(tagRowToResponse);
+
+    return c.json({ tags });
+  } catch (error) {
+    console.error('=== ERROR FETCHING TAGS ===');
+    console.error('Error:', error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error('==========================');
+    
+    return c.json(
+      {
+        error: 'Failed to fetch tags',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      },
+      500
+    );
+  }
+});
+
+// Create a new tag
+app.post('/api/protected/tags', async (c) => {
+  let userId: string | undefined;
+  let body: TagCreateInput | undefined;
+  
+  try {
+    userId = getUserId(c);
+    body = await c.req.json<TagCreateInput>();
+
+    console.log('Creating tag:', { userId, body });
+
+    // Validate required fields
+    if (!body.name || !body.name.trim()) {
+      return c.json(
+        { error: 'Tag name is required' },
+        400
+      );
+    }
+
+    // Check if tag with this name already exists for user
+    const existing = await c.env.DB.prepare(
+      'SELECT id FROM tags WHERE user_id = ? AND name = ?'
+    )
+      .bind(userId, body.name.trim())
+      .first();
+
+    if (existing) {
+      return c.json(
+        { error: 'Tag with this name already exists' },
+        409
+      );
+    }
+
+    const tagId = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    await c.env.DB.prepare(
+      `INSERT INTO tags (id, user_id, name, color, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        tagId,
+        userId,
+        body.name.trim(),
+        body.color ?? '#808080',
+        now,
+        now
+      )
+      .run();
+
+    const tag = await c.env.DB.prepare('SELECT * FROM tags WHERE id = ?')
+      .bind(tagId)
+      .first<TagRow>();
+
+    if (!tag) {
+      return c.json({ error: 'Failed to create tag' }, 500);
+    }
+
+    return c.json(tagRowToResponse(tag), 201);
+  } catch (error) {
+    console.error('=== ERROR CREATING TAG ===');
+    console.error('Error:', error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error('Request body:', body);
+    console.error('User ID:', userId);
+    console.error('=========================');
+    
+    return c.json(
+      {
+        error: 'Failed to create tag',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      },
+      500
+    );
+  }
+});
+
+// Update tag
+app.patch('/api/protected/tags/:id', async (c) => {
+  let userId: string | undefined;
+  let body: TagUpdateInput | undefined;
+  
+  try {
+    userId = getUserId(c);
+    const tagId = c.req.param('id');
+    body = await c.req.json<TagUpdateInput>();
+
+    // Check if tag exists and belongs to user
+    const existingTag = await c.env.DB.prepare(
+      'SELECT * FROM tags WHERE id = ? AND user_id = ?'
+    )
+      .bind(tagId, userId)
+      .first<TagRow>();
+
+    if (!existingTag) {
+      return c.json({ error: 'Tag not found' }, 404);
+    }
+
+    // If updating name, check for duplicates
+    if (body.name && body.name.trim() !== existingTag.name) {
+      const duplicate = await c.env.DB.prepare(
+        'SELECT id FROM tags WHERE user_id = ? AND name = ? AND id != ?'
+      )
+        .bind(userId, body.name.trim(), tagId)
+        .first();
+
+      if (duplicate) {
+        return c.json(
+          { error: 'Tag with this name already exists' },
+          409
+        );
+      }
+    }
+
+    // Build update query
+    const updates: string[] = [];
+    const params: any[] = [];
+
+    if (body.name !== undefined && body.name.trim()) {
+      updates.push('name = ?');
+      params.push(body.name.trim());
+    }
+    if (body.color !== undefined) {
+      updates.push('color = ?');
+      params.push(body.color);
+    }
+
+    if (updates.length === 0) {
+      return c.json({ error: 'No fields to update' }, 400);
+    }
+
+    updates.push('updated_at = ?');
+    params.push(new Date().toISOString());
+
+    params.push(tagId, userId);
+
+    await c.env.DB.prepare(
+      `UPDATE tags SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`
+    )
+      .bind(...params)
+      .run();
+
+    const updatedTag = await c.env.DB.prepare(
+      'SELECT * FROM tags WHERE id = ? AND user_id = ?'
+    )
+      .bind(tagId, userId)
+      .first<TagRow>();
+
+    if (!updatedTag) {
+      return c.json({ error: 'Failed to update tag' }, 500);
+    }
+
+    return c.json(tagRowToResponse(updatedTag));
+  } catch (error) {
+    console.error('=== ERROR UPDATING TAG ===');
+    console.error('Error:', error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error('Tag ID:', c.req.param('id'));
+    console.error('User ID:', userId);
+    console.error('Update body:', body);
+    console.error('=========================');
+    
+    return c.json(
+      {
+        error: 'Failed to update tag',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      },
+      500
+    );
+  }
+});
+
+// Delete tag
+app.delete('/api/protected/tags/:id', async (c) => {
+  try {
+    const userId = getUserId(c);
+    const tagId = c.req.param('id');
+
+    const tag = await c.env.DB.prepare(
+      'SELECT * FROM tags WHERE id = ? AND user_id = ?'
+    )
+      .bind(tagId, userId)
+      .first<TagRow>();
+
+    if (!tag) {
+      return c.json({ error: 'Tag not found' }, 404);
+    }
+
+    // Delete tag (CASCADE will delete task_tags entries)
+    await c.env.DB.prepare(
+      'DELETE FROM tags WHERE id = ? AND user_id = ?'
+    )
+      .bind(tagId, userId)
+      .run();
+
+    return c.json({ message: 'Tag deleted successfully' });
+  } catch (error) {
+    console.error('=== ERROR DELETING TAG ===');
+    console.error('Error:', error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error('Tag ID:', c.req.param('id'));
+    console.error('=========================');
+    
+    return c.json(
+      {
+        error: 'Failed to delete tag',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      },
+      500
+    );
+  }
+});
+
+// Get tags for a specific task
+app.get('/api/protected/tasks/:taskId/tags', async (c) => {
+  try {
+    const userId = getUserId(c);
+    const taskId = c.req.param('taskId');
+
+    // Verify task belongs to user
+    const task = await c.env.DB.prepare(
+      'SELECT id FROM tasks WHERE id = ? AND user_id = ?'
+    )
+      .bind(taskId, userId)
+      .first();
+
+    if (!task) {
+      return c.json({ error: 'Task not found' }, 404);
+    }
+
+    // Get tags for task
+    const { results } = await c.env.DB.prepare(
+      `SELECT t.* FROM tags t
+       INNER JOIN task_tags tt ON t.id = tt.tag_id
+       WHERE tt.task_id = ?
+       ORDER BY t.name ASC`
+    )
+      .bind(taskId)
+      .all<TagRow>();
+
+    const tags = results.map(tagRowToResponse);
+
+    return c.json({ tags });
+  } catch (error) {
+    console.error('=== ERROR FETCHING TASK TAGS ===');
+    console.error('Error:', error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error('Task ID:', c.req.param('taskId'));
+    console.error('===============================');
+    
+    return c.json(
+      {
+        error: 'Failed to fetch task tags',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      },
+      500
+    );
+  }
+});
+
+// Set tags for a task (replaces all existing tags)
+app.put('/api/protected/tasks/:taskId/tags', async (c) => {
+  let userId: string | undefined;
+  let body: { tagIds: string[] } | undefined;
+  
+  try {
+    userId = getUserId(c);
+    const taskId = c.req.param('taskId');
+    body = await c.req.json<{ tagIds: string[] }>();
+
+    // Verify task belongs to user
+    const task = await c.env.DB.prepare(
+      'SELECT id FROM tasks WHERE id = ? AND user_id = ?'
+    )
+      .bind(taskId, userId)
+      .first();
+
+    if (!task) {
+      return c.json({ error: 'Task not found' }, 404);
+    }
+
+    // Verify all tags belong to user
+    if (body.tagIds && body.tagIds.length > 0) {
+      const placeholders = body.tagIds.map(() => '?').join(',');
+      const { results } = await c.env.DB.prepare(
+        `SELECT id FROM tags WHERE user_id = ? AND id IN (${placeholders})`
+      )
+        .bind(userId, ...body.tagIds)
+        .all();
+
+      if (results.length !== body.tagIds.length) {
+        return c.json({ error: 'One or more tags not found' }, 404);
+      }
+    }
+
+    // Delete existing task_tags
+    await c.env.DB.prepare('DELETE FROM task_tags WHERE task_id = ?')
+      .bind(taskId)
+      .run();
+
+    // Insert new task_tags
+    if (body.tagIds && body.tagIds.length > 0) {
+      const now = new Date().toISOString();
+      const statements = body.tagIds.map(tagId =>
+        c.env.DB.prepare(
+          'INSERT INTO task_tags (task_id, tag_id, created_at) VALUES (?, ?, ?)'
+        ).bind(taskId, tagId, now)
+      );
+
+      await c.env.DB.batch(statements);
+    }
+
+    return c.json({ message: 'Task tags updated successfully' });
+  } catch (error) {
+    console.error('=== ERROR UPDATING TASK TAGS ===');
+    console.error('Error:', error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error('Task ID:', c.req.param('taskId'));
+    console.error('User ID:', userId);
+    console.error('Request body:', body);
+    console.error('===============================');
+    
+    return c.json(
+      {
+        error: 'Failed to update task tags',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      },
+      500
+    );
+  }
+});
+
+// Add a single tag to a task
+app.post('/api/protected/tasks/:taskId/tags/:tagId', async (c) => {
+  try {
+    const userId = getUserId(c);
+    const taskId = c.req.param('taskId');
+    const tagId = c.req.param('tagId');
+
+    // Verify task belongs to user
+    const task = await c.env.DB.prepare(
+      'SELECT id FROM tasks WHERE id = ? AND user_id = ?'
+    )
+      .bind(taskId, userId)
+      .first();
+
+    if (!task) {
+      return c.json({ error: 'Task not found' }, 404);
+    }
+
+    // Verify tag belongs to user
+    const tag = await c.env.DB.prepare(
+      'SELECT id FROM tags WHERE id = ? AND user_id = ?'
+    )
+      .bind(tagId, userId)
+      .first();
+
+    if (!tag) {
+      return c.json({ error: 'Tag not found' }, 404);
+    }
+
+    // Check if already linked
+    const existing = await c.env.DB.prepare(
+      'SELECT 1 FROM task_tags WHERE task_id = ? AND tag_id = ?'
+    )
+      .bind(taskId, tagId)
+      .first();
+
+    if (existing) {
+      return c.json({ message: 'Tag already linked to task' });
+    }
+
+    // Link tag to task
+    await c.env.DB.prepare(
+      'INSERT INTO task_tags (task_id, tag_id, created_at) VALUES (?, ?, ?)'
+    )
+      .bind(taskId, tagId, new Date().toISOString())
+      .run();
+
+    return c.json({ message: 'Tag added to task successfully' });
+  } catch (error) {
+    console.error('=== ERROR ADDING TAG TO TASK ===');
+    console.error('Error:', error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error('Task ID:', c.req.param('taskId'));
+    console.error('Tag ID:', c.req.param('tagId'));
+    console.error('===============================');
+    
+    return c.json(
+      {
+        error: 'Failed to add tag to task',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      },
+      500
+    );
+  }
+});
+
+// Remove a tag from a task
+app.delete('/api/protected/tasks/:taskId/tags/:tagId', async (c) => {
+  try {
+    const userId = getUserId(c);
+    const taskId = c.req.param('taskId');
+    const tagId = c.req.param('tagId');
+
+    // Verify task belongs to user
+    const task = await c.env.DB.prepare(
+      'SELECT id FROM tasks WHERE id = ? AND user_id = ?'
+    )
+      .bind(taskId, userId)
+      .first();
+
+    if (!task) {
+      return c.json({ error: 'Task not found' }, 404);
+    }
+
+    // Remove link
+    await c.env.DB.prepare(
+      'DELETE FROM task_tags WHERE task_id = ? AND tag_id = ?'
+    )
+      .bind(taskId, tagId)
+      .run();
+
+    return c.json({ message: 'Tag removed from task successfully' });
+  } catch (error) {
+    console.error('=== ERROR REMOVING TAG FROM TASK ===');
+    console.error('Error:', error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error('Task ID:', c.req.param('taskId'));
+    console.error('Tag ID:', c.req.param('tagId'));
+    console.error('===================================');
+    
+    return c.json(
+      {
+        error: 'Failed to remove tag from task',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      },
+      500
+    );
+  }
+});
+
+// ===== RECURRENCES ENDPOINTS =====
+
+// Get all recurrences for current user
+app.get('/api/protected/recurrences', async (c) => {
+  try {
+    const userId = getUserId(c);
+
+    const { results } = await c.env.DB.prepare(
+      'SELECT * FROM recurrences WHERE user_id = ? ORDER BY created_at DESC'
+    )
+      .bind(userId)
+      .all<RecurrenceRow>();
+
+    const recurrences = results.map(recurrenceRowToResponse);
+
+    return c.json({ recurrences });
+  } catch (error) {
+    console.error('=== ERROR FETCHING RECURRENCES ===');
+    console.error('Error:', error);
+    console.error('====================================');
+    
+    return c.json(
+      {
+        error: 'Failed to fetch recurrences',
+        message: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
+// Get single recurrence by ID
+app.get('/api/protected/recurrences/:id', async (c) => {
+  try {
+    const userId = getUserId(c);
+    const recurrenceId = c.req.param('id');
+
+    const recurrence = await c.env.DB.prepare(
+      'SELECT * FROM recurrences WHERE id = ? AND user_id = ?'
+    )
+      .bind(recurrenceId, userId)
+      .first<RecurrenceRow>();
+
+    if (!recurrence) {
+      return c.json({ error: 'Recurrence not found' }, 404);
+    }
+
+    return c.json(recurrenceRowToResponse(recurrence));
+  } catch (error) {
+    console.error('=== ERROR FETCHING RECURRENCE ===');
+    console.error('Error:', error);
+    console.error('==================================');
+    
+    return c.json(
+      {
+        error: 'Failed to fetch recurrence',
+        message: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
+// Create a new recurrence
+app.post('/api/protected/recurrences', async (c) => {
+  let userId: string | undefined;
+  let body: RecurrenceCreateInput | undefined;
+  
+  try {
+    userId = getUserId(c);
+    body = await c.req.json<RecurrenceCreateInput>();
+
+    console.log('Creating recurrence:', { userId, body });
+
+    // Validate required fields
+    if (!body.title || !body.start_date) {
+      return c.json(
+        { error: 'Title and start_date are required' },
+        400
+      );
+    }
+
+    const recurrenceId = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    await c.env.DB.prepare(
+      `INSERT INTO recurrences (
+        id, user_id, type, interval, interval_unit, weekdays,
+        month_day, month_week, month_weekday,
+        end_type, end_date, end_count, start_date,
+        title, description, duration_minutes, priority,
+        created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        recurrenceId,
+        userId,
+        body.type,
+        body.interval ?? 1,
+        body.interval_unit ?? null,
+        body.weekdays ? JSON.stringify(body.weekdays) : null,
+        body.month_day ?? null,
+        body.month_week ?? null,
+        body.month_weekday ?? null,
+        body.end_type ?? 'never',
+        body.end_date ?? null,
+        body.end_count ?? null,
+        body.start_date,
+        body.title,
+        body.description ?? null,
+        body.duration_minutes ?? null,
+        body.priority ?? 'medium',
+        now,
+        now
+      )
+      .run();
+
+    const recurrence = await c.env.DB.prepare('SELECT * FROM recurrences WHERE id = ?')
+      .bind(recurrenceId)
+      .first<RecurrenceRow>();
+
+    if (!recurrence) {
+      return c.json({ error: 'Failed to create recurrence' }, 500);
+    }
+
+    return c.json(recurrenceRowToResponse(recurrence), 201);
+  } catch (error) {
+    console.error('=== ERROR CREATING RECURRENCE ===');
+    console.error('Error:', error);
+    console.error('Request body:', body);
+    console.error('User ID:', userId);
+    console.error('=================================');
+    
+    return c.json(
+      {
+        error: 'Failed to create recurrence',
+        message: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
+// Update recurrence
+app.patch('/api/protected/recurrences/:id', async (c) => {
+  let userId: string | undefined;
+  let body: RecurrenceUpdateInput | undefined;
+  
+  try {
+    userId = getUserId(c);
+    const recurrenceId = c.req.param('id');
+    body = await c.req.json<RecurrenceUpdateInput>();
+
+    // Check if recurrence exists and belongs to user
+    const existingRecurrence = await c.env.DB.prepare(
+      'SELECT * FROM recurrences WHERE id = ? AND user_id = ?'
+    )
+      .bind(recurrenceId, userId)
+      .first<RecurrenceRow>();
+
+    if (!existingRecurrence) {
+      return c.json({ error: 'Recurrence not found' }, 404);
+    }
+
+    // Build update query
+    const updates: string[] = [];
+    const params: any[] = [];
+
+    if (body.type !== undefined) {
+      updates.push('type = ?');
+      params.push(body.type);
+    }
+    if (body.interval !== undefined) {
+      updates.push('interval = ?');
+      params.push(body.interval);
+    }
+    if (body.interval_unit !== undefined) {
+      updates.push('interval_unit = ?');
+      params.push(body.interval_unit);
+    }
+    if (body.weekdays !== undefined) {
+      updates.push('weekdays = ?');
+      params.push(body.weekdays.length > 0 ? JSON.stringify(body.weekdays) : null);
+    }
+    if (body.month_day !== undefined) {
+      updates.push('month_day = ?');
+      params.push(body.month_day);
+    }
+    if (body.month_week !== undefined) {
+      updates.push('month_week = ?');
+      params.push(body.month_week);
+    }
+    if (body.month_weekday !== undefined) {
+      updates.push('month_weekday = ?');
+      params.push(body.month_weekday);
+    }
+    if (body.end_type !== undefined) {
+      updates.push('end_type = ?');
+      params.push(body.end_type);
+    }
+    if (body.end_date !== undefined) {
+      updates.push('end_date = ?');
+      params.push(body.end_date);
+    }
+    if (body.end_count !== undefined) {
+      updates.push('end_count = ?');
+      params.push(body.end_count);
+    }
+    if (body.start_date !== undefined) {
+      updates.push('start_date = ?');
+      params.push(body.start_date);
+    }
+    if (body.title !== undefined) {
+      updates.push('title = ?');
+      params.push(body.title);
+    }
+    if (body.description !== undefined) {
+      updates.push('description = ?');
+      params.push(body.description);
+    }
+    if (body.duration_minutes !== undefined) {
+      updates.push('duration_minutes = ?');
+      params.push(body.duration_minutes);
+    }
+    if (body.priority !== undefined) {
+      updates.push('priority = ?');
+      params.push(body.priority);
+    }
+    if (body.is_active !== undefined) {
+      updates.push('is_active = ?');
+      params.push(body.is_active ? 1 : 0);
+    }
+
+    if (updates.length === 0) {
+      return c.json({ error: 'No fields to update' }, 400);
+    }
+
+    updates.push('updated_at = ?');
+    params.push(new Date().toISOString());
+
+    params.push(recurrenceId, userId);
+
+    await c.env.DB.prepare(
+      `UPDATE recurrences SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`
+    )
+      .bind(...params)
+      .run();
+
+    const updatedRecurrence = await c.env.DB.prepare(
+      'SELECT * FROM recurrences WHERE id = ? AND user_id = ?'
+    )
+      .bind(recurrenceId, userId)
+      .first<RecurrenceRow>();
+
+    if (!updatedRecurrence) {
+      return c.json({ error: 'Failed to update recurrence' }, 500);
+    }
+
+    return c.json(recurrenceRowToResponse(updatedRecurrence));
+  } catch (error) {
+    console.error('=== ERROR UPDATING RECURRENCE ===');
+    console.error('Error:', error);
+    console.error('Update body:', body);
+    console.error('=================================');
+    
+    return c.json(
+      {
+        error: 'Failed to update recurrence',
+        message: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
+// Delete recurrence
+app.delete('/api/protected/recurrences/:id', async (c) => {
+  try {
+    const userId = getUserId(c);
+    const recurrenceId = c.req.param('id');
+
+    const recurrence = await c.env.DB.prepare(
+      'SELECT * FROM recurrences WHERE id = ? AND user_id = ?'
+    )
+      .bind(recurrenceId, userId)
+      .first<RecurrenceRow>();
+
+    if (!recurrence) {
+      return c.json({ error: 'Recurrence not found' }, 404);
+    }
+
+    // Delete recurrence
+    await c.env.DB.prepare(
+      'DELETE FROM recurrences WHERE id = ? AND user_id = ?'
+    )
+      .bind(recurrenceId, userId)
+      .run();
+
+    return c.json({ message: 'Recurrence deleted successfully' });
+  } catch (error) {
+    console.error('=== ERROR DELETING RECURRENCE ===');
+    console.error('Error:', error);
+    console.error('=================================');
+    
+    return c.json(
+      {
+        error: 'Failed to delete recurrence',
+        message: error instanceof Error ? error.message : String(error),
       },
       500
     );

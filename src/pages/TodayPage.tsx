@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -12,23 +13,33 @@ import {
   DialogContent,
   DialogActions,
   MenuItem,
+  Chip,
+  Autocomplete,
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import { TaskCard } from '../components/TaskCard';
+import { TaskFilters } from '../components/TaskFilters';
+import type { TaskFiltersValue } from '../components/TaskFilters';
 import { getTasks, createTask, updateTask, archiveTask } from '../api/tasks';
 import type { Task, TaskPriority, CreateTaskInput } from '../api/tasks';
+import { getTags, setTaskTags } from '../api/tags';
+import type { Tag } from '../api/tags';
 
 export const TodayPage = () => {
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [filters, setFilters] = useState<TaskFiltersValue>({});
   const [newTask, setNewTask] = useState<CreateTaskInput>({
     title: '',
     description: '',
     start_at: '',
     priority: 'medium',
   });
+  const [availableTags, setAvailableTags] = useState<Tag[]>([]);
+  const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
 
   // Get today's date range
   const getTodayRange = () => {
@@ -52,6 +63,10 @@ export const TodayPage = () => {
         from: range.from,
         to: range.to,
         archived: 'false',
+        search: filters.search,
+        status: filters.status,
+        priority: filters.priority,
+        tags: filters.tagIds?.join(','),
       });
       setTasks(response.tasks);
     } catch (err) {
@@ -62,9 +77,22 @@ export const TodayPage = () => {
     }
   };
 
+  const loadAvailableTags = async () => {
+    try {
+      const response = await getTags();
+      setAvailableTags(response.tags);
+    } catch (err) {
+      console.error('Error loading tags:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadAvailableTags();
+  }, []);
+
   useEffect(() => {
     loadTasks();
-  }, []);
+  }, [filters]);
 
   const handleStatusChange = async (taskId: string, newStatus: 'done' | 'planned') => {
     try {
@@ -98,7 +126,13 @@ export const TodayPage = () => {
     }
 
     try {
-      await createTask(newTask);
+      const createdTask = await createTask(newTask);
+      
+      // Set tags for the task if any selected
+      if (selectedTags.length > 0) {
+        await setTaskTags(createdTask.id, selectedTags.map(tag => tag.id));
+      }
+      
       setDialogOpen(false);
       setNewTask({
         title: '',
@@ -106,6 +140,7 @@ export const TodayPage = () => {
         start_at: '',
         priority: 'medium',
       });
+      setSelectedTags([]);
       await loadTasks();
     } catch (err) {
       console.error('Error creating task:', err);
@@ -117,9 +152,12 @@ export const TodayPage = () => {
     const now = new Date();
     const timeString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     setNewTask({
-      ...newTask,
+      title: '',
+      description: '',
       start_at: timeString,
+      priority: 'medium',
     });
+    setSelectedTags([]);
     setDialogOpen(true);
   };
 
@@ -143,6 +181,8 @@ export const TodayPage = () => {
         </Alert>
       )}
 
+      <TaskFilters value={filters} onChange={setFilters} />
+
       {tasks.length === 0 ? (
         <Typography variant="body1" color="text.secondary">
           Нет задач на сегодня
@@ -154,6 +194,7 @@ export const TodayPage = () => {
             task={task}
             onStatusChange={handleStatusChange}
             onDelete={handleDelete}
+            onClick={(taskId) => navigate(`/tasks/${taskId}`)}
           />
         ))
       )}
@@ -190,10 +231,19 @@ export const TodayPage = () => {
             />
 
             <TextField
-              label="Дата и время"
+              label="Дата и время начала"
               type="datetime-local"
               value={newTask.start_at}
               onChange={(e) => setNewTask({ ...newTask, start_at: e.target.value })}
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+            />
+
+            <TextField
+              label="Дедлайн (опционально)"
+              type="datetime-local"
+              value={newTask.deadline_at || ''}
+              onChange={(e) => setNewTask({ ...newTask, deadline_at: e.target.value })}
               fullWidth
               InputLabelProps={{ shrink: true }}
             />
@@ -210,6 +260,34 @@ export const TodayPage = () => {
               <MenuItem value="high">Высокий</MenuItem>
               <MenuItem value="critical">Критический</MenuItem>
             </TextField>
+
+            <Autocomplete
+              multiple
+              options={availableTags}
+              getOptionLabel={(option) => option.name}
+              value={selectedTags}
+              onChange={(_event, newValue) => setSelectedTags(newValue)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Теги"
+                  placeholder="Выберите теги"
+                />
+              )}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => (
+                  <Chip
+                    {...getTagProps({ index })}
+                    key={option.id}
+                    label={option.name}
+                    sx={{
+                      backgroundColor: option.color,
+                      color: '#fff',
+                    }}
+                  />
+                ))
+              }
+            />
           </Box>
         </DialogContent>
         <DialogActions>

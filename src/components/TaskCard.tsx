@@ -11,6 +11,7 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   AccessTime as TimeIcon,
+  Repeat as RepeatIcon,
 } from '@mui/icons-material';
 import type { Task } from '../api/tasks';
 
@@ -19,6 +20,7 @@ type TaskCardProps = {
   onStatusChange?: (taskId: string, newStatus: 'done' | 'planned') => void;
   onEdit?: (taskId: string) => void;
   onDelete?: (taskId: string) => void;
+  onClick?: (taskId: string) => void;
 };
 
 const priorityColors = {
@@ -36,12 +38,19 @@ const statusLabels = {
   canceled: 'Отменена',
 };
 
-export const TaskCard = ({ task, onStatusChange, onEdit, onDelete }: TaskCardProps) => {
+export const TaskCard = ({ task, onStatusChange, onEdit, onDelete, onClick }: TaskCardProps) => {
   const isDone = task.status === 'done';
 
-  const handleCheckboxChange = () => {
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation();
     if (onStatusChange) {
       onStatusChange(task.id, isDone ? 'planned' : 'done');
+    }
+  };
+
+  const handleCardClick = () => {
+    if (onClick) {
+      onClick(task.id);
     }
   };
 
@@ -51,7 +60,16 @@ export const TaskCard = ({ task, onStatusChange, onEdit, onDelete }: TaskCardPro
   };
 
   return (
-    <Card sx={{ mb: 2 }}>
+    <Card 
+      sx={{ 
+        mb: 2,
+        cursor: onClick ? 'pointer' : 'default',
+        '&:hover': onClick ? {
+          boxShadow: 3,
+        } : {},
+      }}
+      onClick={handleCardClick}
+    >
       <CardContent>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
           <Checkbox
@@ -100,6 +118,28 @@ export const TaskCard = ({ task, onStatusChange, onEdit, onDelete }: TaskCardPro
                 size="small"
                 variant="outlined"
               />
+
+              {task.recurrenceId && (
+                <Chip
+                  icon={<RepeatIcon />}
+                  label="Периодическая"
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                />
+              )}
+
+              {task.tags && task.tags.map((tag) => (
+                <Chip
+                  key={tag.id}
+                  label={tag.name}
+                  size="small"
+                  sx={{
+                    backgroundColor: tag.color,
+                    color: '#fff',
+                  }}
+                />
+              ))}
             </Box>
           </Box>
 
@@ -107,7 +147,10 @@ export const TaskCard = ({ task, onStatusChange, onEdit, onDelete }: TaskCardPro
             {onEdit && (
               <IconButton
                 size="small"
-                onClick={() => onEdit(task.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(task.id);
+                }}
                 aria-label="Редактировать"
               >
                 <EditIcon />
@@ -117,7 +160,10 @@ export const TaskCard = ({ task, onStatusChange, onEdit, onDelete }: TaskCardPro
             {onDelete && (
               <IconButton
                 size="small"
-                onClick={() => onDelete(task.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(task.id);
+                }}
                 color="error"
                 aria-label="Удалить"
               >
