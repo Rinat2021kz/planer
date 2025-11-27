@@ -32,6 +32,8 @@ import {
   Today as TodayIcon,
   CalendarMonth as CalendarMonthIcon,
   DateRange as DateRangeIcon,
+  CalendarViewMonth as CalendarViewMonthIcon,
+  People as PeopleIcon,
 } from '@mui/icons-material'
 import { useThemeContext } from './ThemeContext'
 import { useAuth } from './AuthContext'
@@ -42,8 +44,10 @@ import { ForgotPassword } from './components/ForgotPassword'
 import { TodayPage } from './pages/TodayPage'
 import { WeekPage } from './pages/WeekPage'
 import { MonthPage } from './pages/MonthPage'
+import { CalendarPage } from './pages/CalendarPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { TaskDetailPage } from './pages/TaskDetailPage'
+import { SharedTasksPage } from './pages/SharedTasksPage'
 import './App.css'
 
 // Main authenticated app layout component
@@ -59,6 +63,7 @@ const AppLayout = () => {
     if (location.pathname === '/today') return 0
     if (location.pathname === '/week') return 1
     if (location.pathname === '/month') return 2
+    if (location.pathname === '/calendar') return 3
     return 0
   }
 
@@ -81,6 +86,8 @@ const AppLayout = () => {
     { text: 'Сегодня', icon: <TodayIcon />, path: '/today' },
     { text: 'Неделя', icon: <DateRangeIcon />, path: '/week' },
     { text: 'Месяц', icon: <CalendarMonthIcon />, path: '/month' },
+    { text: 'Календарь', icon: <CalendarViewMonthIcon />, path: '/calendar' },
+    { text: 'Общие задачи', icon: <PeopleIcon />, path: '/shared' },
     { text: 'Профиль', icon: <PersonIcon />, path: '/profile' },
     { text: 'Настройки', icon: <SettingsIcon />, path: '/settings' },
   ]
@@ -203,6 +210,8 @@ const AppLayout = () => {
           <Route path="/today" element={<TodayPage />} />
           <Route path="/week" element={<WeekPage />} />
           <Route path="/month" element={<MonthPage />} />
+          <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/shared" element={<SharedTasksPage />} />
           <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
           <Route path="/profile" element={<Box sx={{ p: 2 }}><Typography>Профиль</Typography></Box>} />
           <Route path="/settings" element={<SettingsPage />} />
@@ -218,7 +227,7 @@ const AppLayout = () => {
           value={bottomNavValue}
           onChange={(_event, newValue) => {
             setBottomNavValue(newValue)
-            const routes = ['/today', '/week', '/month']
+            const routes = ['/today', '/week', '/month', '/calendar']
             if (routes[newValue]) {
               navigate(routes[newValue])
             }
@@ -227,6 +236,7 @@ const AppLayout = () => {
           <BottomNavigationAction label="Сегодня" icon={<TodayIcon />} />
           <BottomNavigationAction label="Неделя" icon={<DateRangeIcon />} />
           <BottomNavigationAction label="Месяц" icon={<CalendarMonthIcon />} />
+          <BottomNavigationAction label="Календарь" icon={<CalendarViewMonthIcon />} />
         </BottomNavigation>
       </Paper>
     </Box>

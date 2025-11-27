@@ -166,11 +166,11 @@ type RecurrenceRow = {
 type RecurrenceCreateInput = {
   type: RecurrenceType;
   interval?: number;
-  interval_unit?: 'days' | 'weeks' | 'months' | 'years';
+  interval_unit?: 'hours' | 'days' | 'weeks' | 'months' | 'years';
   weekdays?: string[]; // ["monday", "wednesday", "friday"]
   month_day?: number;
-  month_week?: number;
-  month_weekday?: string;
+  month_week?: number; // 1-5 for "1st-5th", -1 for "last"
+  month_weekday?: string; // 'monday', 'tuesday', etc.
   end_type?: RecurrenceEndType;
   end_date?: string;
   end_count?: number;
@@ -184,7 +184,7 @@ type RecurrenceCreateInput = {
 type RecurrenceUpdateInput = {
   type?: RecurrenceType;
   interval?: number;
-  interval_unit?: 'days' | 'weeks' | 'months' | 'years';
+  interval_unit?: 'hours' | 'days' | 'weeks' | 'months' | 'years';
   weekdays?: string[];
   month_day?: number;
   month_week?: number;
@@ -224,6 +224,36 @@ type RecurrenceResponse = {
   createdAt: string;
   updatedAt: string;
 };
+
+type TaskShareRow = {
+  id: string;
+  task_id: string;
+  owner_id: string;
+  shared_with_id: string;
+  permission: 'view' | 'edit';
+  created_at: string;
+  updated_at: string;
+};
+
+// type UserConnectionRow = {
+//   id: string;
+//   user_id: string;
+//   connected_user_id: string;
+//   status: 'pending' | 'accepted' | 'rejected';
+//   created_by: string;
+//   created_at: string;
+//   updated_at: string;
+// };
+
+type ShareTaskInput = {
+  task_id: string;
+  shared_with_email: string; // Email of user to share with
+  permission: 'view' | 'edit';
+};
+
+// type ConnectionRequestInput = {
+//   connected_user_email: string;
+// };
 
 // Helper function to get userId from context
 const getUserId = (c: any): string => {
@@ -408,9 +438,35 @@ const shouldGenerateTaskOnDate = (recurrence: RecurrenceRow, date: Date): boolea
     }
     
     case 'monthly': {
+      // Support for specific day of month (e.g., 15th)
       if (recurrence.month_day) {
         return date.getDate() === recurrence.month_day;
       }
+      
+      // Support for "nth weekday" pattern (e.g., "2nd Monday")
+      if (recurrence.month_week !== null && recurrence.month_weekday) {
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const targetDayIndex = dayNames.indexOf(recurrence.month_weekday.toLowerCase());
+        
+        if (targetDayIndex === -1 || dayOfWeek !== targetDayIndex) {
+          return false;
+        }
+        
+        // Calculate which occurrence of this weekday in the month
+        const dayOfMonth = date.getDate();
+        const weekInMonth = Math.ceil(dayOfMonth / 7);
+        
+        // Support -1 for "last occurrence"
+        if (recurrence.month_week === -1) {
+          // Check if this is the last occurrence of this weekday
+          const nextWeek = new Date(date);
+          nextWeek.setDate(date.getDate() + 7);
+          return nextWeek.getMonth() !== date.getMonth();
+        }
+        
+        return weekInMonth === recurrence.month_week;
+      }
+      
       return false;
     }
     
@@ -423,17 +479,31 @@ const shouldGenerateTaskOnDate = (recurrence: RecurrenceRow, date: Date): boolea
     case 'custom': {
       if (!recurrence.interval_unit) return false;
       
-      const daysDiff = Math.floor((date.getTime() - recurrenceStart.getTime()) / (1000 * 60 * 60 * 24));
-      
       switch (recurrence.interval_unit) {
-        case 'days':
+        case 'hours': {
+          const hoursDiff = Math.floor((date.getTime() - recurrenceStart.getTime()) / (1000 * 60 * 60));
+          // Check if the hour matches and we're on the same or later date
+          return hoursDiff >= 0 && hoursDiff % recurrence.interval === 0;
+        }
+        case 'days': {
+          const daysDiff = Math.floor((date.getTime() - recurrenceStart.getTime()) / (1000 * 60 * 60 * 24));
           return daysDiff % recurrence.interval === 0;
-        case 'weeks':
+        }
+        case 'weeks': {
+          const daysDiff = Math.floor((date.getTime() - recurrenceStart.getTime()) / (1000 * 60 * 60 * 24));
           return daysDiff % (recurrence.interval * 7) === 0;
-        case 'months':
+        }
+        case 'months': {
           const monthsDiff = (date.getFullYear() - recurrenceStart.getFullYear()) * 12 + 
                            (date.getMonth() - recurrenceStart.getMonth());
           return monthsDiff % recurrence.interval === 0 && date.getDate() === recurrenceStart.getDate();
+        }
+        case 'years': {
+          const yearsDiff = date.getFullYear() - recurrenceStart.getFullYear();
+          return yearsDiff % recurrence.interval === 0 && 
+                 date.getMonth() === recurrenceStart.getMonth() && 
+                 date.getDate() === recurrenceStart.getDate();
+        }
         default:
           return false;
       }
@@ -1934,6 +2004,254 @@ app.delete('/api/protected/recurrences/:id', async (c) => {
     return c.json(
       {
         error: 'Failed to delete recurrence',
+        message: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
+// ===== SHARING ENDPOINTS =====
+
+// Share a task with another user
+app.post('/api/protected/tasks/:taskId/share', async (c) => {
+  let userId: string | undefined;
+  let body: ShareTaskInput | undefined;
+  
+  try {
+    userId = getUserId(c);
+    const taskId = c.req.param('taskId');
+    body = await c.req.json<ShareTaskInput>();
+
+    // Verify task belongs to user
+    const task = await c.env.DB.prepare(
+      'SELECT id FROM tasks WHERE id = ? AND user_id = ?'
+    )
+      .bind(taskId, userId)
+      .first();
+
+    if (!task) {
+      return c.json({ error: 'Task not found or not owned by you' }, 404);
+    }
+
+    // Find user by email
+    const targetUser = await c.env.DB.prepare(
+      'SELECT id FROM users WHERE email = ?'
+    )
+      .bind(body.shared_with_email)
+      .first<{ id: string }>();
+
+    if (!targetUser) {
+      return c.json({ error: 'User with this email not found' }, 404);
+    }
+
+    if (targetUser.id === userId) {
+      return c.json({ error: 'Cannot share task with yourself' }, 400);
+    }
+
+    // Check if already shared
+    const existing = await c.env.DB.prepare(
+      'SELECT id FROM task_shares WHERE task_id = ? AND shared_with_id = ?'
+    )
+      .bind(taskId, targetUser.id)
+      .first();
+
+    if (existing) {
+      return c.json({ error: 'Task already shared with this user' }, 409);
+    }
+
+    const shareId = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    await c.env.DB.prepare(
+      `INSERT INTO task_shares (id, task_id, owner_id, shared_with_id, permission, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(shareId, taskId, userId, targetUser.id, body.permission, now, now)
+      .run();
+
+    return c.json({ message: 'Task shared successfully', shareId }, 201);
+  } catch (error) {
+    console.error('=== ERROR SHARING TASK ===');
+    console.error('Error:', error);
+    console.error('Request body:', body);
+    console.error('User ID:', userId);
+    console.error('==========================');
+    
+    return c.json(
+      {
+        error: 'Failed to share task',
+        message: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
+// Get shared tasks (tasks shared WITH current user)
+app.get('/api/protected/shared-tasks', async (c) => {
+  try {
+    const userId = getUserId(c);
+
+    const { results } = await c.env.DB.prepare(
+      `SELECT t.*, ts.permission, ts.owner_id, u.email as owner_email
+       FROM tasks t
+       INNER JOIN task_shares ts ON t.id = ts.task_id
+       LEFT JOIN users u ON ts.owner_id = u.id
+       WHERE ts.shared_with_id = ? AND t.deleted_at IS NULL
+       ORDER BY t.start_at ASC`
+    )
+      .bind(userId)
+      .all<TaskRow & { permission: string; owner_id: string; owner_email: string }>();
+
+    const tasks = results.map(row => ({
+      ...taskRowToResponse(row),
+      permission: row.permission,
+      ownerId: row.owner_id,
+      ownerEmail: row.owner_email,
+    }));
+
+    return c.json({ tasks });
+  } catch (error) {
+    console.error('=== ERROR FETCHING SHARED TASKS ===');
+    console.error('Error:', error);
+    console.error('===================================');
+    
+    return c.json(
+      {
+        error: 'Failed to fetch shared tasks',
+        message: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
+// Get shares for a specific task (who has access)
+app.get('/api/protected/tasks/:taskId/shares', async (c) => {
+  try {
+    const userId = getUserId(c);
+    const taskId = c.req.param('taskId');
+
+    // Verify task belongs to user
+    const task = await c.env.DB.prepare(
+      'SELECT id FROM tasks WHERE id = ? AND user_id = ?'
+    )
+      .bind(taskId, userId)
+      .first();
+
+    if (!task) {
+      return c.json({ error: 'Task not found or not owned by you' }, 404);
+    }
+
+    const { results } = await c.env.DB.prepare(
+      `SELECT ts.*, u.email, u.display_name
+       FROM task_shares ts
+       LEFT JOIN users u ON ts.shared_with_id = u.id
+       WHERE ts.task_id = ?
+       ORDER BY ts.created_at DESC`
+    )
+      .bind(taskId)
+      .all<TaskShareRow & { email: string; display_name: string }>();
+
+    const shares = results.map(row => ({
+      id: row.id,
+      userId: row.shared_with_id,
+      email: row.email,
+      displayName: row.display_name,
+      permission: row.permission,
+      createdAt: row.created_at,
+    }));
+
+    return c.json({ shares });
+  } catch (error) {
+    console.error('=== ERROR FETCHING TASK SHARES ===');
+    console.error('Error:', error);
+    console.error('==================================');
+    
+    return c.json(
+      {
+        error: 'Failed to fetch task shares',
+        message: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
+// Remove share
+app.delete('/api/protected/tasks/:taskId/shares/:shareId', async (c) => {
+  try {
+    const userId = getUserId(c);
+    const taskId = c.req.param('taskId');
+    const shareId = c.req.param('shareId');
+
+    // Verify task belongs to user
+    const task = await c.env.DB.prepare(
+      'SELECT id FROM tasks WHERE id = ? AND user_id = ?'
+    )
+      .bind(taskId, userId)
+      .first();
+
+    if (!task) {
+      return c.json({ error: 'Task not found or not owned by you' }, 404);
+    }
+
+    await c.env.DB.prepare(
+      'DELETE FROM task_shares WHERE id = ? AND task_id = ? AND owner_id = ?'
+    )
+      .bind(shareId, taskId, userId)
+      .run();
+
+    return c.json({ message: 'Share removed successfully' });
+  } catch (error) {
+    console.error('=== ERROR REMOVING SHARE ===');
+    console.error('Error:', error);
+    console.error('============================');
+    
+    return c.json(
+      {
+        error: 'Failed to remove share',
+        message: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
+  }
+});
+
+// Search users by email (for sharing)
+app.get('/api/protected/users/search', async (c) => {
+  try {
+    const userId = getUserId(c);
+    const { email } = c.req.query();
+
+    if (!email || email.length < 3) {
+      return c.json({ users: [] });
+    }
+
+    const { results } = await c.env.DB.prepare(
+      `SELECT id, email, display_name FROM users 
+       WHERE email LIKE ? AND id != ?
+       LIMIT 10`
+    )
+      .bind(`%${email}%`, userId)
+      .all<{ id: string; email: string; display_name: string }>();
+
+    const users = results.map(row => ({
+      id: row.id,
+      email: row.email,
+      displayName: row.display_name,
+    }));
+
+    return c.json({ users });
+  } catch (error) {
+    console.error('=== ERROR SEARCHING USERS ===');
+    console.error('Error:', error);
+    console.error('=============================');
+    
+    return c.json(
+      {
+        error: 'Failed to search users',
         message: error instanceof Error ? error.message : String(error),
       },
       500

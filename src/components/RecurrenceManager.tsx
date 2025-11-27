@@ -286,14 +286,85 @@ export const RecurrenceManager = () => {
             )}
 
             {formData.type === 'monthly' && (
-              <TextField
-                label="День месяца"
-                type="number"
-                value={formData.month_day || ''}
-                onChange={(e) => setFormData({ ...formData, month_day: parseInt(e.target.value) || undefined })}
-                inputProps={{ min: 1, max: 31 }}
-                fullWidth
-              />
+              <Box>
+                <Typography variant="subtitle2" gutterBottom>
+                  Тип месячного повторения
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <TextField
+                    label="День месяца (1-31)"
+                    type="number"
+                    value={formData.month_day || ''}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      setFormData({ 
+                        ...formData, 
+                        month_day: value || undefined,
+                        month_week: undefined,
+                        month_weekday: undefined
+                      });
+                    }}
+                    inputProps={{ min: 1, max: 31 }}
+                    fullWidth
+                    helperText="Например: 15 для каждого 15-го числа"
+                  />
+                  
+                  <Typography variant="body2" sx={{ textAlign: 'center' }}>
+                    или
+                  </Typography>
+                  
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <TextField
+                      select
+                      label="Неделя месяца"
+                      value={formData.month_week || ''}
+                      onChange={(e) => {
+                        setFormData({ 
+                          ...formData, 
+                          month_week: e.target.value ? parseInt(e.target.value) : undefined,
+                          month_day: undefined
+                        });
+                      }}
+                      sx={{ flex: 1 }}
+                    >
+                      <MenuItem value="">Не выбрано</MenuItem>
+                      <MenuItem value={1}>Первый</MenuItem>
+                      <MenuItem value={2}>Второй</MenuItem>
+                      <MenuItem value={3}>Третий</MenuItem>
+                      <MenuItem value={4}>Четвертый</MenuItem>
+                      <MenuItem value={-1}>Последний</MenuItem>
+                    </TextField>
+                    
+                    <TextField
+                      select
+                      label="День недели"
+                      value={formData.month_weekday || ''}
+                      onChange={(e) => {
+                        setFormData({ 
+                          ...formData, 
+                          month_weekday: e.target.value || undefined,
+                          month_day: undefined
+                        });
+                      }}
+                      sx={{ flex: 1 }}
+                      disabled={!formData.month_week}
+                    >
+                      <MenuItem value="">Не выбрано</MenuItem>
+                      <MenuItem value="monday">Понедельник</MenuItem>
+                      <MenuItem value="tuesday">Вторник</MenuItem>
+                      <MenuItem value="wednesday">Среда</MenuItem>
+                      <MenuItem value="thursday">Четверг</MenuItem>
+                      <MenuItem value="friday">Пятница</MenuItem>
+                      <MenuItem value="saturday">Суббота</MenuItem>
+                      <MenuItem value="sunday">Воскресенье</MenuItem>
+                    </TextField>
+                  </Box>
+                  
+                  <Typography variant="caption" color="text.secondary">
+                    Например: "Второй понедельник" или "Последняя пятница"
+                  </Typography>
+                </Box>
+              </Box>
             )}
 
             {formData.type === 'custom' && (
@@ -312,9 +383,11 @@ export const RecurrenceManager = () => {
                   onChange={(e) => setFormData({ ...formData, interval_unit: e.target.value as any })}
                   sx={{ flex: 1 }}
                 >
+                  <MenuItem value="hours">Часов</MenuItem>
                   <MenuItem value="days">Дней</MenuItem>
                   <MenuItem value="weeks">Недель</MenuItem>
                   <MenuItem value="months">Месяцев</MenuItem>
+                  <MenuItem value="years">Лет</MenuItem>
                 </TextField>
               </Box>
             )}

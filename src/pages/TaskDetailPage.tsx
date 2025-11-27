@@ -21,11 +21,13 @@ import {
   Cancel as CancelIcon,
   Delete as DeleteIcon,
   ContentCopy as ContentCopyIcon,
+  Share as ShareIcon,
 } from '@mui/icons-material';
 import { getTask, updateTask, archiveTask, createTask } from '../api/tasks';
 import type { Task, TaskPriority, TaskStatus, UpdateTaskInput, CreateTaskInput } from '../api/tasks';
 import { getTags, setTaskTags } from '../api/tags';
 import type { Tag } from '../api/tags';
+import { ShareTaskDialog } from '../components/ShareTaskDialog';
 
 const statusLabels: Record<TaskStatus, string> = {
   planned: 'Запланирована',
@@ -45,6 +47,7 @@ export const TaskDetailPage = () => {
   const [editedTask, setEditedTask] = useState<UpdateTaskInput>({});
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
 
   const loadTask = async () => {
     if (!taskId) return;
@@ -448,6 +451,13 @@ export const TaskDetailPage = () => {
 
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
               <Button
+                startIcon={<ShareIcon />}
+                variant="outlined"
+                onClick={() => setShareDialogOpen(true)}
+              >
+                Поделиться
+              </Button>
+              <Button
                 startIcon={<ContentCopyIcon />}
                 variant="outlined"
                 onClick={handleDuplicate}
@@ -466,6 +476,15 @@ export const TaskDetailPage = () => {
           </Box>
         )}
       </Paper>
+
+      {task && (
+        <ShareTaskDialog
+          open={shareDialogOpen}
+          onClose={() => setShareDialogOpen(false)}
+          taskId={task.id}
+          taskTitle={task.title}
+        />
+      )}
     </Box>
   );
 };

@@ -35,11 +35,11 @@ export type Recurrence = {
 export type CreateRecurrenceInput = {
   type: RecurrenceType;
   interval?: number;
-  interval_unit?: 'days' | 'weeks' | 'months' | 'years';
+  interval_unit?: 'hours' | 'days' | 'weeks' | 'months' | 'years';
   weekdays?: string[];
   month_day?: number;
-  month_week?: number;
-  month_weekday?: string;
+  month_week?: number; // 1-5 for "1st, 2nd, 3rd, 4th, 5th", -1 for "last"
+  month_weekday?: string; // 'monday', 'tuesday', etc.
   end_type?: RecurrenceEndType;
   end_date?: string;
   end_count?: number;
@@ -53,7 +53,7 @@ export type CreateRecurrenceInput = {
 export type UpdateRecurrenceInput = {
   type?: RecurrenceType;
   interval?: number;
-  interval_unit?: 'days' | 'weeks' | 'months' | 'years';
+  interval_unit?: 'hours' | 'days' | 'weeks' | 'months' | 'years';
   weekdays?: string[];
   month_day?: number;
   month_week?: number;

@@ -1,0 +1,128 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Typography,
+  CircularProgress,
+  Alert,
+  Chip,
+} from '@mui/material';
+import { TaskCard } from '../components/TaskCard';
+import { getSharedTasks } from '../api/sharing';
+import { updateTask, archiveTask } from '../api/tasks';
+import type { SharedTask } from '../api/sharing';
+
+export const SharedTasksPage = () => {
+  const navigate = useNavigate();
+  const [tasks, setTasks] = useState<SharedTask[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadSharedTasks = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await getSharedTasks();
+      setTasks(response.tasks);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load shared tasks');
+      console.error('Error loading shared tasks:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSharedTasks();
+  }, []);
+
+  const handleStatusChange = async (taskId: string, newStatus: 'done' | 'planned') => {
+    // Check if user has edit permission
+    const task = tasks.find(t => t.id === taskId);
+    if (task && task.permission === 'view') {
+      setError('У вас нет прав на редактирование этой задачи');
+      return;
+    }
+
+    try {
+      await updateTask(taskId, { status: newStatus });
+      await loadSharedTasks();
+    } catch (err) {
+      console.error('Error updating task:', err);
+      setError(err instanceof Error ? err.message : 'Failed to update task');
+    }
+  };
+
+  const handleDelete = async (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (task && task.permission === 'view') {
+      setError('У вас нет прав на удаление этой задачи');
+      return;
+    }
+
+    try {
+      await archiveTask(taskId);
+      await loadSharedTasks();
+    } catch (err) {
+      console.error('Error deleting task:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete task');
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ p: 2, pb: 10 }}>
+      <Typography variant="h4" gutterBottom>
+        Общие задачи
+      </Typography>
+
+      <Typography variant="body2" color="text.secondary" paragraph>
+        Задачи, которыми с вами поделились
+      </Typography>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
+      {tasks.length === 0 ? (
+        <Typography variant="body1" color="text.secondary">
+          Нет общих задач
+        </Typography>
+      ) : (
+        tasks.map((task: any) => (
+          <Box key={task.id} sx={{ mb: 1 }}>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 0.5 }}>
+              <Chip
+                label={`От: ${task.ownerEmail}`}
+                size="small"
+                color="primary"
+                variant="outlined"
+              />
+              <Chip
+                label={task.permission === 'view' ? 'Просмотр' : 'Редактирование'}
+                size="small"
+                color={task.permission === 'view' ? 'default' : 'success'}
+              />
+            </Box>
+            <TaskCard
+              task={task}
+              onStatusChange={task.permission === 'edit' ? handleStatusChange : undefined}
+              onDelete={task.permission === 'edit' ? handleDelete : undefined}
+              onClick={(taskId) => navigate(`/tasks/${taskId}`)}
+            />
+          </Box>
+        ))
+      )}
+    </Box>
+  );
+};
+
