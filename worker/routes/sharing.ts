@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { Bindings, Variables } from '../types/app';
 import type { ShareTaskInput, TaskShareRow, TaskRow } from '../types';
 import { getUserId } from '../utils/auth';
-import { errorResponse } from '../utils/helpers';
+import { errorResponse, checkTaskAccess } from '../utils/helpers';
 import { taskRowToResponse } from '../utils/mappers';
 
 const sharingRoutes = new Hono<{ Bindings: Bindings; Variables: Variables }>();
@@ -17,13 +17,25 @@ sharingRoutes.post('/:taskId/share', async (c) => {
     const taskId = c.req.param('taskId');
     body = await c.req.json<ShareTaskInput>();
 
-    // Verify task belongs to user
-    const task = await c.env.DB.prepare('SELECT id FROM tasks WHERE id = ? AND user_id = ?')
-      .bind(taskId, userId)
-      .first();
+    // Check access (owner or edit permission)
+    const access = await checkTaskAccess(c.env.DB, taskId, userId);
 
-    if (!task) {
-      return c.json({ error: 'Task not found or not owned by you' }, 404);
+    if (!access.canEdit) {
+      return c.json({ error: 'Task not found or you do not have permission to share' }, 403);
+    }
+
+    // Get task owner ID
+    const taskOwner = await c.env.DB.prepare('SELECT user_id FROM tasks WHERE id = ?')
+      .bind(taskId)
+      .first<{ user_id: string }>();
+
+    if (!taskOwner) {
+      return c.json({ error: 'Task not found' }, 404);
+    }
+
+    // If user is not the owner, they can only share with 'view' permission
+    if (!access.isOwner && body.permission === 'edit') {
+      return c.json({ error: 'Only task owner can grant edit permissions' }, 403);
     }
 
     // Find user by email
@@ -53,11 +65,12 @@ sharingRoutes.post('/:taskId/share', async (c) => {
     const shareId = crypto.randomUUID();
     const now = new Date().toISOString();
 
+    // Always use task owner as owner_id in task_shares
     await c.env.DB.prepare(
       `INSERT INTO task_shares (id, task_id, owner_id, shared_with_id, permission, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
-      .bind(shareId, taskId, userId, targetUser.id, body.permission, now, now)
+      .bind(shareId, taskId, taskOwner.user_id, targetUser.id, body.permission, now, now)
       .run();
 
     return c.json({ message: 'Task shared successfully', shareId }, 201);
@@ -103,13 +116,11 @@ sharingRoutes.get('/:taskId/shares', async (c) => {
     const userId = getUserId(c);
     const taskId = c.req.param('taskId');
 
-    // Verify task belongs to user
-    const task = await c.env.DB.prepare('SELECT id FROM tasks WHERE id = ? AND user_id = ?')
-      .bind(taskId, userId)
-      .first();
+    // Check access (owner or edit permission can view shares)
+    const access = await checkTaskAccess(c.env.DB, taskId, userId);
 
-    if (!task) {
-      return c.json({ error: 'Task not found or not owned by you' }, 404);
+    if (!access.canEdit) {
+      return c.json({ error: 'Task not found or you do not have permission to view shares' }, 403);
     }
 
     const { results } = await c.env.DB.prepare(
@@ -144,13 +155,11 @@ sharingRoutes.delete('/:taskId/shares/:shareId', async (c) => {
     const taskId = c.req.param('taskId');
     const shareId = c.req.param('shareId');
 
-    // Verify task belongs to user
-    const task = await c.env.DB.prepare('SELECT id FROM tasks WHERE id = ? AND user_id = ?')
-      .bind(taskId, userId)
-      .first();
+    // Check access (only owner can remove shares)
+    const access = await checkTaskAccess(c.env.DB, taskId, userId);
 
-    if (!task) {
-      return c.json({ error: 'Task not found or not owned by you' }, 404);
+    if (!access.isOwner) {
+      return c.json({ error: 'Only task owner can remove shares' }, 403);
     }
 
     await c.env.DB.prepare(
