@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { Bindings, Variables } from '../types/app';
 import type { TagRow } from '../types';
 import { getUserId } from '../utils/auth';
-import { errorResponse } from '../utils/helpers';
+import { errorResponse, checkTaskAccess } from '../utils/helpers';
 import { tagRowToResponse } from '../utils/mappers';
 
 const taskTagsRoutes = new Hono<{ Bindings: Bindings; Variables: Variables }>();
@@ -13,13 +13,11 @@ taskTagsRoutes.get('/:taskId/tags', async (c) => {
     const userId = getUserId(c);
     const taskId = c.req.param('taskId');
 
-    // Verify task belongs to user
-    const task = await c.env.DB.prepare('SELECT id FROM tasks WHERE id = ? AND user_id = ?')
-      .bind(taskId, userId)
-      .first();
+    // Check access (owner or shared with user)
+    const access = await checkTaskAccess(c.env.DB, taskId, userId);
 
-    if (!task) {
-      return c.json({ error: 'Task not found' }, 404);
+    if (!access.canView) {
+      return c.json({ error: 'Task not found or access denied' }, 404);
     }
 
     // Get tags for task
@@ -51,16 +49,14 @@ taskTagsRoutes.put('/:taskId/tags', async (c) => {
     const taskId = c.req.param('taskId');
     body = await c.req.json<{ tagIds: string[] }>();
 
-    // Verify task belongs to user
-    const task = await c.env.DB.prepare('SELECT id FROM tasks WHERE id = ? AND user_id = ?')
-      .bind(taskId, userId)
-      .first();
+    // Check access (owner or edit permission)
+    const access = await checkTaskAccess(c.env.DB, taskId, userId);
 
-    if (!task) {
-      return c.json({ error: 'Task not found' }, 404);
+    if (!access.canEdit) {
+      return c.json({ error: 'Task not found or you do not have edit permission' }, 403);
     }
 
-    // Verify all tags belong to user
+    // Verify all tags belong to user (tags can only be owned by the user adding them)
     if (body.tagIds && body.tagIds.length > 0) {
       const placeholders = body.tagIds.map(() => '?').join(',');
       const { results } = await c.env.DB.prepare(
@@ -106,16 +102,14 @@ taskTagsRoutes.post('/:taskId/tags/:tagId', async (c) => {
     const taskId = c.req.param('taskId');
     const tagId = c.req.param('tagId');
 
-    // Verify task belongs to user
-    const task = await c.env.DB.prepare('SELECT id FROM tasks WHERE id = ? AND user_id = ?')
-      .bind(taskId, userId)
-      .first();
+    // Check access (owner or edit permission)
+    const access = await checkTaskAccess(c.env.DB, taskId, userId);
 
-    if (!task) {
-      return c.json({ error: 'Task not found' }, 404);
+    if (!access.canEdit) {
+      return c.json({ error: 'Task not found or you do not have edit permission' }, 403);
     }
 
-    // Verify tag belongs to user
+    // Verify tag belongs to user (tags can only be owned by the user adding them)
     const tag = await c.env.DB.prepare('SELECT id FROM tags WHERE id = ? AND user_id = ?')
       .bind(tagId, userId)
       .first();
@@ -157,13 +151,11 @@ taskTagsRoutes.delete('/:taskId/tags/:tagId', async (c) => {
     const taskId = c.req.param('taskId');
     const tagId = c.req.param('tagId');
 
-    // Verify task belongs to user
-    const task = await c.env.DB.prepare('SELECT id FROM tasks WHERE id = ? AND user_id = ?')
-      .bind(taskId, userId)
-      .first();
+    // Check access (owner or edit permission)
+    const access = await checkTaskAccess(c.env.DB, taskId, userId);
 
-    if (!task) {
-      return c.json({ error: 'Task not found' }, 404);
+    if (!access.canEdit) {
+      return c.json({ error: 'Task not found or you do not have edit permission' }, 403);
     }
 
     // Remove link
