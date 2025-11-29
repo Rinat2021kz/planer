@@ -7,10 +7,12 @@ import {
   Alert,
   ToggleButtonGroup,
   ToggleButton,
+  Fab,
 } from '@mui/material';
 import {
   ViewList as ViewListIcon,
   CalendarMonth as CalendarMonthIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
 import { CalendarView } from '../components/CalendarView';
 import { TaskCard } from '../components/TaskCard';
@@ -18,6 +20,7 @@ import { TaskFilters } from '../components/TaskFilters';
 import type { TaskFiltersValue } from '../components/TaskFilters';
 import { getTasks, updateTask, archiveTask } from '../api/tasks';
 import type { Task } from '../api/tasks';
+import { CreateTaskDialog } from '../components/CreateTaskDialog';
 
 export const CalendarPage = () => {
   const navigate = useNavigate();
@@ -27,6 +30,7 @@ export const CalendarPage = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
   const [filters, setFilters] = useState<TaskFiltersValue>({});
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   // Get month range for current view
   const getMonthRange = (date: Date) => {
@@ -201,6 +205,22 @@ export const CalendarPage = () => {
           )}
         </Box>
       )}
+
+      <Fab
+        color="primary"
+        aria-label="Добавить задачу"
+        sx={{ position: 'fixed', bottom: 80, right: 16 }}
+        onClick={() => setCreateDialogOpen(true)}
+      >
+        <AddIcon />
+      </Fab>
+
+      <CreateTaskDialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+        onTaskCreated={loadTasks}
+        defaultDate={selectedDate}
+      />
     </Box>
   );
 };

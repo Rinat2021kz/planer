@@ -13,6 +13,7 @@ import { TaskFilters } from '../components/TaskFilters';
 import type { TaskFiltersValue } from '../components/TaskFilters';
 import { getTasks, updateTask, archiveTask } from '../api/tasks';
 import type { Task } from '../api/tasks';
+import { CreateTaskDialog } from '../components/CreateTaskDialog';
 
 export const AllTasksPage = () => {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ export const AllTasksPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<TaskFiltersValue>({});
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const loadTasks = async () => {
     try {
@@ -136,10 +138,16 @@ export const AllTasksPage = () => {
         color="primary"
         aria-label="Добавить задачу"
         sx={{ position: 'fixed', bottom: 80, right: 16 }}
-        onClick={() => navigate('/today')}
+        onClick={() => setCreateDialogOpen(true)}
       >
         <AddIcon />
       </Fab>
+
+      <CreateTaskDialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+        onTaskCreated={loadTasks}
+      />
     </Box>
   );
 };

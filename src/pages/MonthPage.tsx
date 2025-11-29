@@ -5,12 +5,15 @@ import {
   Typography,
   CircularProgress,
   Alert,
+  Fab,
 } from '@mui/material';
+import { Add as AddIcon } from '@mui/icons-material';
 import { TaskCard } from '../components/TaskCard';
 import { TaskFilters } from '../components/TaskFilters';
 import type { TaskFiltersValue } from '../components/TaskFilters';
 import { getTasks, updateTask, archiveTask } from '../api/tasks';
 import type { Task } from '../api/tasks';
+import { CreateTaskDialog } from '../components/CreateTaskDialog';
 
 export const MonthPage = () => {
   const navigate = useNavigate();
@@ -18,6 +21,7 @@ export const MonthPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<TaskFiltersValue>({});
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   // Get this month's date range
   const getMonthRange = () => {
@@ -115,6 +119,21 @@ export const MonthPage = () => {
           />
         ))
       )}
+
+      <Fab
+        color="primary"
+        aria-label="Добавить задачу"
+        sx={{ position: 'fixed', bottom: 80, right: 16 }}
+        onClick={() => setCreateDialogOpen(true)}
+      >
+        <AddIcon />
+      </Fab>
+
+      <CreateTaskDialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+        onTaskCreated={loadTasks}
+      />
     </Box>
   );
 };
