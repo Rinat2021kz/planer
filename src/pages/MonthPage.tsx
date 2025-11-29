@@ -6,8 +6,14 @@ import {
   CircularProgress,
   Alert,
   Fab,
+  IconButton,
 } from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
+import {
+  Add as AddIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
+  Today as TodayIcon,
+} from '@mui/icons-material';
 import { TaskCard } from '../components/TaskCard';
 import { TaskFilters } from '../components/TaskFilters';
 import type { TaskFiltersValue } from '../components/TaskFilters';
@@ -22,12 +28,12 @@ export const MonthPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<TaskFiltersValue>({});
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  // Get this month's date range
-  const getMonthRange = () => {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  // Get month's date range
+  const getMonthRange = (date: Date) => {
+    const start = new Date(date.getFullYear(), date.getMonth(), 1);
+    const end = new Date(date.getFullYear(), date.getMonth() + 1, 1);
     
     return {
       from: start.toISOString(),
@@ -39,7 +45,7 @@ export const MonthPage = () => {
     try {
       setLoading(true);
       setError(null);
-      const range = getMonthRange();
+      const range = getMonthRange(currentMonth);
       const response = await getTasks({
         from: range.from,
         to: range.to,
@@ -60,7 +66,19 @@ export const MonthPage = () => {
 
   useEffect(() => {
     loadTasks();
-  }, [filters]);
+  }, [currentMonth, filters]);
+
+  const handlePreviousMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+  };
+
+  const handleToday = () => {
+    setCurrentMonth(new Date());
+  };
 
   const handleStatusChange = async (taskId: string, newStatus: 'done' | 'planned') => {
     try {
@@ -90,11 +108,28 @@ export const MonthPage = () => {
     );
   }
 
+  const monthName = currentMonth.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+
   return (
     <Box sx={{ p: 2, pb: 10 }}>
-      <Typography variant="h4" gutterBottom>
-        Месяц
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <IconButton onClick={handlePreviousMonth} size="medium">
+          <ChevronLeftIcon />
+        </IconButton>
+        
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography variant="h5" sx={{ textTransform: 'capitalize' }}>
+            {monthName}
+          </Typography>
+          <IconButton onClick={handleToday} size="small" title="Сегодня">
+            <TodayIcon />
+          </IconButton>
+        </Box>
+        
+        <IconButton onClick={handleNextMonth} size="medium">
+          <ChevronRightIcon />
+        </IconButton>
+      </Box>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>

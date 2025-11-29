@@ -6,8 +6,14 @@ import {
   CircularProgress,
   Alert,
   Fab,
+  IconButton,
 } from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
+import {
+  Add as AddIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
+  Today as TodayIcon,
+} from '@mui/icons-material';
 import { TaskCard } from '../components/TaskCard';
 import { TaskFilters } from '../components/TaskFilters';
 import type { TaskFiltersValue } from '../components/TaskFilters';
@@ -22,15 +28,19 @@ export const WeekPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<TaskFiltersValue>({});
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-
-  // Get this week's date range (Monday to Sunday)
-  const getWeekRange = () => {
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const now = new Date();
     const dayOfWeek = now.getDay();
     const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Adjust for Monday start
-    
     const start = new Date(now);
     start.setDate(now.getDate() + diff);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  });
+
+  // Get week's date range (Monday to Sunday) from a given start date
+  const getWeekRange = (weekStart: Date) => {
+    const start = new Date(weekStart);
     start.setHours(0, 0, 0, 0);
     
     const end = new Date(start);
@@ -46,7 +56,7 @@ export const WeekPage = () => {
     try {
       setLoading(true);
       setError(null);
-      const range = getWeekRange();
+      const range = getWeekRange(currentWeekStart);
       const response = await getTasks({
         from: range.from,
         to: range.to,
@@ -67,7 +77,29 @@ export const WeekPage = () => {
 
   useEffect(() => {
     loadTasks();
-  }, [filters]);
+  }, [currentWeekStart, filters]);
+
+  const handlePreviousWeek = () => {
+    const newWeekStart = new Date(currentWeekStart);
+    newWeekStart.setDate(currentWeekStart.getDate() - 7);
+    setCurrentWeekStart(newWeekStart);
+  };
+
+  const handleNextWeek = () => {
+    const newWeekStart = new Date(currentWeekStart);
+    newWeekStart.setDate(currentWeekStart.getDate() + 7);
+    setCurrentWeekStart(newWeekStart);
+  };
+
+  const handleToday = () => {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Adjust for Monday start
+    const start = new Date(now);
+    start.setDate(now.getDate() + diff);
+    start.setHours(0, 0, 0, 0);
+    setCurrentWeekStart(start);
+  };
 
   const handleStatusChange = async (taskId: string, newStatus: 'done' | 'planned') => {
     try {
@@ -97,11 +129,31 @@ export const WeekPage = () => {
     );
   }
 
+  const weekEnd = new Date(currentWeekStart);
+  weekEnd.setDate(currentWeekStart.getDate() + 6);
+  
+  const weekLabel = `${currentWeekStart.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} - ${weekEnd.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+
   return (
     <Box sx={{ p: 2, pb: 10 }}>
-      <Typography variant="h4" gutterBottom>
-        Неделя
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <IconButton onClick={handlePreviousWeek} size="medium">
+          <ChevronLeftIcon />
+        </IconButton>
+        
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography variant="h5">
+            {weekLabel}
+          </Typography>
+          <IconButton onClick={handleToday} size="small" title="Сегодня">
+            <TodayIcon />
+          </IconButton>
+        </Box>
+        
+        <IconButton onClick={handleNextWeek} size="medium">
+          <ChevronRightIcon />
+        </IconButton>
+      </Box>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
