@@ -39,18 +39,6 @@ export const TodayPage = () => {
     };
   };
 
-  // Get range for upcoming deadlines (next 3 days)
-  const getUpcomingRange = () => {
-    const now = new Date();
-    const end = new Date(now);
-    end.setDate(end.getDate() + 3);
-    
-    return {
-      from: now.toISOString(),
-      to: end.toISOString(),
-    };
-  };
-
   const loadTasks = async () => {
     try {
       setLoading(true);
@@ -70,7 +58,6 @@ export const TodayPage = () => {
       setTasks(response.tasks);
 
       // Load all tasks with upcoming deadlines (not completed)
-      const upcomingRange = getUpcomingRange();
       const upcomingResponse = await getTasks({
         from: new Date(0).toISOString(), // All past tasks
         to: new Date(2100, 0, 1).toISOString(), // Far future

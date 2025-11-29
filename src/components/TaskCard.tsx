@@ -11,7 +11,6 @@ import {
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
-  AccessTime as TimeIcon,
   Repeat as RepeatIcon,
   Event as EventIcon,
   Flag as FlagIcon,

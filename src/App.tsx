@@ -35,6 +35,7 @@ import {
   CalendarViewMonth as CalendarViewMonthIcon,
   People as PeopleIcon,
   List as ListIcon,
+  Archive as ArchiveIcon,
 } from '@mui/icons-material'
 import { useThemeContext } from './ThemeContext'
 import { useAuth } from './AuthContext'
@@ -50,6 +51,7 @@ import { SettingsPage } from './pages/SettingsPage'
 import { TaskDetailPage } from './pages/TaskDetailPage'
 import { SharedTasksPage } from './pages/SharedTasksPage'
 import { AllTasksPage } from './pages/AllTasksPage'
+import { ArchivePage } from './pages/ArchivePage'
 import './App.css'
 
 // Main authenticated app layout component
@@ -91,6 +93,7 @@ const AppLayout = () => {
     { text: 'Месяц', icon: <CalendarMonthIcon />, path: '/month' },
     { text: 'Календарь', icon: <CalendarViewMonthIcon />, path: '/calendar' },
     { text: 'Общие задачи', icon: <PeopleIcon />, path: '/shared' },
+    { text: 'Архив', icon: <ArchiveIcon />, path: '/archive' },
     { text: 'Профиль', icon: <PersonIcon />, path: '/profile' },
     { text: 'Настройки', icon: <SettingsIcon />, path: '/settings' },
   ]
@@ -216,6 +219,7 @@ const AppLayout = () => {
           <Route path="/month" element={<MonthPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/shared" element={<SharedTasksPage />} />
+          <Route path="/archive" element={<ArchivePage />} />
           <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
           <Route path="/profile" element={<Box sx={{ p: 2 }}><Typography>Профиль</Typography></Box>} />
           <Route path="/settings" element={<SettingsPage />} />

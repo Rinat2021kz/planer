@@ -128,6 +128,11 @@ export const archiveTask = async (id: string): Promise<{ message: string }> => {
   });
 };
 
+// Restore task from archive
+export const unarchiveTask = async (id: string): Promise<Task> => {
+  return updateTask(id, { is_archived: false });
+};
+
 // Permanently delete task
 export const permanentlyDeleteTask = async (id: string): Promise<{ message: string }> => {
   return fetchWithAuth(`/api/protected/tasks/${id}/permanent`, {
