@@ -6,12 +6,16 @@ import {
   IconButton,
   Box,
   Checkbox,
+  Tooltip,
 } from '@mui/material';
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   AccessTime as TimeIcon,
   Repeat as RepeatIcon,
+  Event as EventIcon,
+  Flag as FlagIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material';
 import type { Task } from '../api/tasks';
 
@@ -59,6 +63,26 @@ export const TaskCard = ({ task, onStatusChange, onEdit, onDelete, onClick }: Ta
     return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   };
 
+  const formatDate = (isoString: string) => {
+    const date = new Date(isoString);
+    return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+  };
+
+  const getDeadlineStatus = (deadlineAt: string) => {
+    const now = new Date();
+    const deadline = new Date(deadlineAt);
+    const diffInHours = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60);
+    
+    if (diffInHours < 0) {
+      return { status: 'overdue', label: 'Просрочен', color: 'error' as const };
+    } else if (diffInHours < 24) {
+      return { status: 'urgent', label: 'Срочно', color: 'warning' as const };
+    } else if (diffInHours < 72) {
+      return { status: 'soon', label: 'Скоро', color: 'info' as const };
+    }
+    return { status: 'normal', label: '', color: 'default' as const };
+  };
+
   return (
     <Card 
       sx={{ 
@@ -100,12 +124,38 @@ export const TaskCard = ({ task, onStatusChange, onEdit, onDelete, onClick }: Ta
             )}
 
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center', mt: 1 }}>
-              <Chip
-                icon={<TimeIcon />}
-                label={formatTime(task.startAt)}
-                size="small"
-                variant="outlined"
-              />
+              <Tooltip title="Время начала">
+                <Chip
+                  icon={<EventIcon />}
+                  label={formatTime(task.startAt)}
+                  size="small"
+                  variant="outlined"
+                />
+              </Tooltip>
+              
+              {task.deadlineAt && (() => {
+                const deadlineStatus = getDeadlineStatus(task.deadlineAt);
+                const isOverdueOrUrgent = deadlineStatus.status === 'overdue' || deadlineStatus.status === 'urgent';
+                
+                return (
+                  <Tooltip title={`Дедлайн: ${formatDate(task.deadlineAt)} ${formatTime(task.deadlineAt)}`}>
+                    <Chip
+                      icon={isOverdueOrUrgent ? <WarningIcon /> : <FlagIcon />}
+                      label={`${formatDate(task.deadlineAt)} ${formatTime(task.deadlineAt)}`}
+                      size="small"
+                      color={deadlineStatus.color}
+                      variant={isOverdueOrUrgent ? 'filled' : 'outlined'}
+                      sx={isOverdueOrUrgent ? {
+                        animation: 'pulse 2s ease-in-out infinite',
+                        '@keyframes pulse': {
+                          '0%, 100%': { opacity: 1 },
+                          '50%': { opacity: 0.7 },
+                        },
+                      } : {}}
+                    />
+                  </Tooltip>
+                );
+              })()}
               
               <Chip
                 label={task.priority}
