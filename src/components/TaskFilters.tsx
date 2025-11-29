@@ -22,6 +22,8 @@ export type TaskFiltersValue = {
   status?: TaskStatus;
   priority?: TaskPriority;
   tagIds?: string[];
+  dateFrom?: string;
+  dateTo?: string;
 };
 
 type TaskFiltersProps = {
@@ -62,12 +64,20 @@ export const TaskFilters = ({ value, onChange }: TaskFiltersProps) => {
     onChange({ ...value, tagIds: tags.length > 0 ? tags.map(t => t.id) : undefined });
   };
 
+  const handleDateFromChange = (date: string) => {
+    onChange({ ...value, dateFrom: date || undefined });
+  };
+
+  const handleDateToChange = (date: string) => {
+    onChange({ ...value, dateTo: date || undefined });
+  };
+
   const getSelectedTags = (): Tag[] => {
     if (!value.tagIds || value.tagIds.length === 0) return [];
     return availableTags.filter(tag => value.tagIds!.includes(tag.id));
   };
 
-  const hasActiveFilters = !!(value.search || value.status || value.priority || (value.tagIds && value.tagIds.length > 0));
+  const hasActiveFilters = !!(value.search || value.status || value.priority || (value.tagIds && value.tagIds.length > 0) || value.dateFrom || value.dateTo);
 
   return (
     <Box sx={{ mb: 2 }}>
@@ -120,6 +130,27 @@ export const TaskFilters = ({ value, onChange }: TaskFiltersProps) => {
               <MenuItem value="high">Высокий</MenuItem>
               <MenuItem value="critical">Критический</MenuItem>
             </TextField>
+
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                label="Дата от"
+                type="date"
+                value={value.dateFrom || ''}
+                onChange={(e) => handleDateFromChange(e.target.value)}
+                size="small"
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+              />
+              <TextField
+                label="Дата до"
+                type="date"
+                value={value.dateTo || ''}
+                onChange={(e) => handleDateToChange(e.target.value)}
+                size="small"
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+              />
+            </Box>
 
             <Autocomplete
               multiple

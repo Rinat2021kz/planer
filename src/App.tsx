@@ -34,6 +34,7 @@ import {
   DateRange as DateRangeIcon,
   CalendarViewMonth as CalendarViewMonthIcon,
   People as PeopleIcon,
+  List as ListIcon,
 } from '@mui/icons-material'
 import { useThemeContext } from './ThemeContext'
 import { useAuth } from './AuthContext'
@@ -48,6 +49,7 @@ import { CalendarPage } from './pages/CalendarPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { TaskDetailPage } from './pages/TaskDetailPage'
 import { SharedTasksPage } from './pages/SharedTasksPage'
+import { AllTasksPage } from './pages/AllTasksPage'
 import './App.css'
 
 // Main authenticated app layout component
@@ -83,6 +85,7 @@ const AppLayout = () => {
   }
 
   const menuItems = [
+    { text: 'Все задачи', icon: <ListIcon />, path: '/all' },
     { text: 'Сегодня', icon: <TodayIcon />, path: '/today' },
     { text: 'Неделя', icon: <DateRangeIcon />, path: '/week' },
     { text: 'Месяц', icon: <CalendarMonthIcon />, path: '/month' },
@@ -206,7 +209,8 @@ const AppLayout = () => {
       {/* Main content */}
       <Box sx={{ mt: 8 }}>
         <Routes>
-          <Route path="/" element={<Navigate to="/today" replace />} />
+          <Route path="/" element={<Navigate to="/all" replace />} />
+          <Route path="/all" element={<AllTasksPage />} />
           <Route path="/today" element={<TodayPage />} />
           <Route path="/week" element={<WeekPage />} />
           <Route path="/month" element={<MonthPage />} />
