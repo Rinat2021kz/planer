@@ -38,6 +38,9 @@ export const ShareTaskDialog = ({ open, onClose, taskId, taskTitle, isOwner }: S
   const [permission, setPermission] = useState<'view' | 'edit'>('view');
   const [searchLoading, setSearchLoading] = useState(false);
 
+  // Debug: log isOwner value
+  console.log('ShareTaskDialog - taskId:', taskId, 'taskTitle:', taskTitle, 'isOwner:', isOwner);
+
   const loadShares = async () => {
     try {
       setLoading(true);

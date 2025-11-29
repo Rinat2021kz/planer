@@ -480,13 +480,22 @@ export const TaskDetailPage = () => {
       </Paper>
 
       {task && (
-        <ShareTaskDialog
-          open={shareDialogOpen}
-          onClose={() => setShareDialogOpen(false)}
-          taskId={task.id}
-          taskTitle={task.title}
-          isOwner={task.userId === user?.uid}
-        />
+        <>
+          {/* Debug: log task ownership */}
+          {console.log('Task ownership check:', {
+            taskUserId: task.userId,
+            currentUserUid: user?.uid,
+            isOwner: task.userId === user?.uid,
+            taskTitle: task.title
+          })}
+          <ShareTaskDialog
+            open={shareDialogOpen}
+            onClose={() => setShareDialogOpen(false)}
+            taskId={task.id}
+            taskTitle={task.title}
+            isOwner={task.userId === user?.uid}
+          />
+        </>
       )}
     </Box>
   );
