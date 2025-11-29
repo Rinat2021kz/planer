@@ -28,6 +28,7 @@ import type { Task, TaskPriority, TaskStatus, UpdateTaskInput, CreateTaskInput }
 import { getTags, setTaskTags } from '../api/tags';
 import type { Tag } from '../api/tags';
 import { ShareTaskDialog } from '../components/ShareTaskDialog';
+import { useAuth } from '../AuthContext';
 
 const statusLabels: Record<TaskStatus, string> = {
   planned: 'Запланирована',
@@ -40,6 +41,7 @@ const statusLabels: Record<TaskStatus, string> = {
 export const TaskDetailPage = () => {
   const { taskId } = useParams<{ taskId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -483,6 +485,7 @@ export const TaskDetailPage = () => {
           onClose={() => setShareDialogOpen(false)}
           taskId={task.id}
           taskTitle={task.title}
+          isOwner={task.userId === user?.uid}
         />
       )}
     </Box>

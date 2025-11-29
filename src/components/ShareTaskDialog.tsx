@@ -26,9 +26,10 @@ type ShareTaskDialogProps = {
   onClose: () => void;
   taskId: string;
   taskTitle: string;
+  isOwner: boolean;
 };
 
-export const ShareTaskDialog = ({ open, onClose, taskId, taskTitle }: ShareTaskDialogProps) => {
+export const ShareTaskDialog = ({ open, onClose, taskId, taskTitle, isOwner }: ShareTaskDialogProps) => {
   const [shares, setShares] = useState<TaskShare[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -156,9 +157,11 @@ export const ShareTaskDialog = ({ open, onClose, taskId, taskTitle }: ShareTaskD
           onChange={(e) => setPermission(e.target.value as 'view' | 'edit')}
           fullWidth
           sx={{ mb: 2 }}
+          disabled={!isOwner}
+          helperText={!isOwner ? "Вы можете приглашать только с правами просмотра" : ""}
         >
           <MenuItem value="view">Просмотр</MenuItem>
-          <MenuItem value="edit">Редактирование</MenuItem>
+          {isOwner && <MenuItem value="edit">Редактирование</MenuItem>}
         </TextField>
 
         <Button onClick={handleShare} variant="contained" fullWidth disabled={!selectedUser}>
