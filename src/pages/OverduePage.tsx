@@ -9,9 +9,10 @@ import {
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import { TaskCard } from '../components/TaskCard';
-import { getTasks, updateTask, archiveTask } from '../api/tasks';
+import { getTasks } from '../api/tasks';
 import type { Task } from '../api/tasks';
 import { CreateTaskDialog } from '../components/CreateTaskDialog';
+import { createTaskHandlers } from '../utils/taskHandlers';
 
 export const OverduePage = () => {
   const navigate = useNavigate();
@@ -69,6 +70,15 @@ export const OverduePage = () => {
     }
   };
 
+  const {
+    handleStatusChange: handleStatus,
+    handleEdit,
+    handleDuplicate,
+    handleShare,
+    handleArchive,
+    handleDelete: handleDeleteTask,
+  } = createTaskHandlers(loadTasks, navigate, setError);
+
   if (loading && tasks.length === 0) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
@@ -106,8 +116,12 @@ export const OverduePage = () => {
             <TaskCard
               key={task.id}
               task={task}
-              onStatusChange={handleStatusChange}
-              onDelete={handleDelete}
+              onStatusChange={handleStatus}
+              onEdit={handleEdit}
+              onDuplicate={handleDuplicate}
+              onShare={handleShare}
+              onArchive={handleArchive}
+              onDelete={handleDeleteTask}
               onClick={(taskId) => navigate(`/tasks/${taskId}`)}
             />
           ))}

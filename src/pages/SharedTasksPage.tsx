@@ -9,7 +9,7 @@ import {
 } from '@mui/material';
 import { TaskCard } from '../components/TaskCard';
 import { getSharedTasks } from '../api/sharing';
-import { updateTask, archiveTask } from '../api/tasks';
+import { updateTask, archiveTask, duplicateTask } from '../api/tasks';
 import type { SharedTask } from '../api/sharing';
 
 export const SharedTasksPage = () => {
@@ -49,6 +49,56 @@ export const SharedTasksPage = () => {
       } else {
         setError(errorMessage);
       }
+    }
+  };
+
+  const handleEdit = (taskId: string) => {
+    navigate(`/tasks/${taskId}`);
+  };
+
+  const handleDuplicate = async (taskId: string) => {
+    try {
+      await duplicateTask(taskId);
+      await loadSharedTasks();
+    } catch (err) {
+      console.error('Error duplicating task:', err);
+      setError(err instanceof Error ? err.message : 'Failed to duplicate task');
+    }
+  };
+
+  const handleShare = async (taskId: string) => {
+    const shareUrl = `${window.location.origin}/tasks/${taskId}`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Share Task',
+          text: 'Check out this task',
+          url: shareUrl,
+        });
+      } catch (err) {
+        console.error('Error sharing:', err);
+      }
+    } else {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        setError('Link copied to clipboard!');
+        setTimeout(() => setError(null), 2000);
+      } catch (err) {
+        console.error('Error copying to clipboard:', err);
+        setError('Failed to copy link');
+      }
+    }
+  };
+
+  const handleArchive = async (taskId: string) => {
+    try {
+      await updateTask(taskId, { is_archived: true });
+      await loadSharedTasks();
+    } catch (err) {
+      console.error('Error archiving task:', err);
+      setError(err instanceof Error ? err.message : 'Failed to archive task');
     }
   };
 
@@ -115,6 +165,10 @@ export const SharedTasksPage = () => {
             <TaskCard
               task={task}
               onStatusChange={handleStatusChange}
+              onEdit={handleEdit}
+              onDuplicate={handleDuplicate}
+              onShare={handleShare}
+              onArchive={handleArchive}
               onDelete={handleDelete}
               onClick={(taskId) => navigate(`/tasks/${taskId}`)}
             />

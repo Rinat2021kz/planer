@@ -140,3 +140,10 @@ export const permanentlyDeleteTask = async (id: string): Promise<{ message: stri
   });
 };
 
+// Duplicate task
+export const duplicateTask = async (id: string): Promise<Task> => {
+  return fetchWithAuth(`/api/protected/tasks/${id}/duplicate`, {
+    method: 'POST',
+  });
+};
+

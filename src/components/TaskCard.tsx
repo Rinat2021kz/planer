@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -7,6 +8,10 @@ import {
   Box,
   Checkbox,
   Tooltip,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -15,6 +20,10 @@ import {
   Event as EventIcon,
   Flag as FlagIcon,
   Warning as WarningIcon,
+  MoreVert as MoreVertIcon,
+  ContentCopy as ContentCopyIcon,
+  Share as ShareIcon,
+  Archive as ArchiveIcon,
 } from '@mui/icons-material';
 import type { Task } from '../api/tasks';
 
@@ -23,6 +32,9 @@ type TaskCardProps = {
   onStatusChange?: (taskId: string, newStatus: 'done' | 'planned') => void;
   onEdit?: (taskId: string) => void;
   onDelete?: (taskId: string) => void;
+  onDuplicate?: (taskId: string) => void;
+  onShare?: (taskId: string) => void;
+  onArchive?: (taskId: string) => void;
   onClick?: (taskId: string) => void;
 };
 
@@ -41,8 +53,19 @@ const statusLabels = {
   canceled: 'Отменена',
 };
 
-export const TaskCard = ({ task, onStatusChange, onEdit, onDelete, onClick }: TaskCardProps) => {
+export const TaskCard = ({ 
+  task, 
+  onStatusChange, 
+  onEdit, 
+  onDelete, 
+  onDuplicate,
+  onShare,
+  onArchive,
+  onClick 
+}: TaskCardProps) => {
   const isDone = task.status === 'done';
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const menuOpen = Boolean(anchorEl);
   
   // Check if task is overdue
   const isOverdue = task.deadlineAt && new Date(task.deadlineAt) < new Date() && task.status !== 'done';
@@ -57,6 +80,58 @@ export const TaskCard = ({ task, onStatusChange, onEdit, onDelete, onClick }: Ta
   const handleCardClick = () => {
     if (onClick) {
       onClick(task.id);
+    }
+  };
+
+  const handleMenuOpen = (e: React.MouseEvent<HTMLElement>) => {
+    e.stopPropagation();
+    setAnchorEl(e.currentTarget);
+  };
+
+  const handleMenuClose = (e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    setAnchorEl(null);
+  };
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    handleMenuClose();
+    if (onEdit) {
+      onEdit(task.id);
+    }
+  };
+
+  const handleDuplicateClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    handleMenuClose();
+    if (onDuplicate) {
+      onDuplicate(task.id);
+    }
+  };
+
+  const handleShareClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    handleMenuClose();
+    if (onShare) {
+      onShare(task.id);
+    }
+  };
+
+  const handleArchiveClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    handleMenuClose();
+    if (onArchive) {
+      onArchive(task.id);
+    }
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    handleMenuClose();
+    if (onDelete) {
+      onDelete(task.id);
     }
   };
 
@@ -223,32 +298,73 @@ export const TaskCard = ({ task, onStatusChange, onEdit, onDelete, onClick }: Ta
           </Box>
 
           <Box>
-            {onEdit && (
-              <IconButton
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(task.id);
-                }}
-                aria-label="Редактировать"
-              >
-                <EditIcon />
-              </IconButton>
-            )}
+            <IconButton
+              size="small"
+              onClick={handleMenuOpen}
+              aria-label="Меню действий"
+            >
+              <MoreVertIcon />
+            </IconButton>
             
-            {onDelete && (
-              <IconButton
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(task.id);
-                }}
-                color="error"
-                aria-label="Удалить"
-              >
-                <DeleteIcon />
-              </IconButton>
-            )}
+            <Menu
+              anchorEl={anchorEl}
+              open={menuOpen}
+              onClose={handleMenuClose}
+              onClick={(e) => e.stopPropagation()}
+              anchorOrigin={{
+                vertical: 'bottom',
+                horizontal: 'right',
+              }}
+              transformOrigin={{
+                vertical: 'top',
+                horizontal: 'right',
+              }}
+            >
+              {onEdit && (
+                <MenuItem onClick={handleEditClick}>
+                  <ListItemIcon>
+                    <EditIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Редактировать</ListItemText>
+                </MenuItem>
+              )}
+              
+              {onDuplicate && (
+                <MenuItem onClick={handleDuplicateClick}>
+                  <ListItemIcon>
+                    <ContentCopyIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Дублировать</ListItemText>
+                </MenuItem>
+              )}
+              
+              {onShare && (
+                <MenuItem onClick={handleShareClick}>
+                  <ListItemIcon>
+                    <ShareIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Поделиться</ListItemText>
+                </MenuItem>
+              )}
+              
+              {onArchive && !task.isArchived && (
+                <MenuItem onClick={handleArchiveClick}>
+                  <ListItemIcon>
+                    <ArchiveIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>В архив</ListItemText>
+                </MenuItem>
+              )}
+              
+              {onDelete && (
+                <MenuItem onClick={handleDeleteClick} sx={{ color: 'error.main' }}>
+                  <ListItemIcon>
+                    <DeleteIcon fontSize="small" color="error" />
+                  </ListItemIcon>
+                  <ListItemText>Удалить</ListItemText>
+                </MenuItem>
+              )}
+            </Menu>
           </Box>
         </Box>
       </CardContent>

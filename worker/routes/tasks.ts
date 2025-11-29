@@ -484,5 +484,97 @@ tasksRoutes.delete('/:id/permanent', async (c) => {
   }
 });
 
+// Duplicate task
+tasksRoutes.post('/:id/duplicate', async (c) => {
+  try {
+    const userId = getUserId(c);
+    const taskId = c.req.param('id');
+
+    // Check access (user must have at least view access)
+    const access = await checkTaskAccess(c.env.DB, taskId, userId);
+
+    if (!access.canView) {
+      return c.json({ error: 'Task not found or access denied' }, 404);
+    }
+
+    // Get original task
+    const originalTask = await c.env.DB.prepare(
+      'SELECT * FROM tasks WHERE id = ? AND deleted_at IS NULL'
+    )
+      .bind(taskId)
+      .first<TaskRow>();
+
+    if (!originalTask) {
+      return c.json({ error: 'Task not found' }, 404);
+    }
+
+    // Create new task with duplicated data
+    const newTaskId = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    await c.env.DB.prepare(
+      `INSERT INTO tasks (id, user_id, title, description, start_at, deadline_at, priority, status, is_archived, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        newTaskId,
+        userId, // New task belongs to current user
+        `${originalTask.title} (Copy)`,
+        originalTask.description,
+        originalTask.start_at,
+        originalTask.deadline_at,
+        originalTask.priority,
+        'planned', // Reset status to planned for duplicated task
+        0, // Not archived
+        now,
+        now
+      )
+      .run();
+
+    // Copy tags
+    const { results: taskTags } = await c.env.DB.prepare(
+      'SELECT tag_id FROM task_tags WHERE task_id = ?'
+    )
+      .bind(taskId)
+      .all<{ tag_id: string }>();
+
+    for (const tagRow of taskTags) {
+      await c.env.DB.prepare(
+        'INSERT INTO task_tags (task_id, tag_id) VALUES (?, ?)'
+      )
+        .bind(newTaskId, tagRow.tag_id)
+        .run();
+    }
+
+    // Fetch the new task
+    const newTask = await c.env.DB.prepare('SELECT * FROM tasks WHERE id = ?')
+      .bind(newTaskId)
+      .first<TaskRow>();
+
+    if (!newTask) {
+      return c.json({ error: 'Failed to create duplicate task' }, 500);
+    }
+
+    const taskResponse = taskRowToResponse(newTask);
+
+    // Fetch tags for the new task
+    const { results: tagResults } = await c.env.DB.prepare(
+      `SELECT t.* FROM tags t
+       INNER JOIN task_tags tt ON t.id = tt.tag_id
+       WHERE tt.task_id = ?
+       ORDER BY t.name ASC`
+    )
+      .bind(newTaskId)
+      .all<TagRow>();
+
+    taskResponse.tags = tagResults.map(tagRowToResponse);
+
+    return c.json(taskResponse, 201);
+  } catch (error) {
+    console.error('Task ID:', c.req.param('id'));
+    return errorResponse(c, error, 'Failed to duplicate task');
+  }
+});
+
 export default tasksRoutes;
 
