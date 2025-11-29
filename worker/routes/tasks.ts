@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { Bindings, Variables } from '../types/app';
 import type { TaskCreateInput, TaskUpdateInput, TaskRow, TagRow } from '../types';
 import { getUserId } from '../utils/auth';
-import { errorResponse } from '../utils/helpers';
+import { errorResponse, checkTaskAccess } from '../utils/helpers';
 import { taskRowToResponse, tagRowToResponse } from '../utils/mappers';
 import { generateTasksFromRecurrence, MAX_RECURRENCE_GENERATION_DAYS } from '../services/recurrence';
 import type { RecurrenceRow } from '../types';
@@ -103,6 +103,7 @@ tasksRoutes.get('/', async (c) => {
       }
     }
 
+    // Build query for owned tasks
     let query = 'SELECT DISTINCT t.* FROM tasks t';
     const params: any[] = [];
 
@@ -163,9 +164,84 @@ tasksRoutes.get('/', async (c) => {
 
     query += ' ORDER BY t.start_at ASC';
 
-    const { results } = await c.env.DB.prepare(query).bind(...params).all<TaskRow>();
+    const { results: ownedTasks } = await c.env.DB.prepare(query).bind(...params).all<TaskRow>();
 
-    const tasks = results.map(taskRowToResponse);
+    // Build query for shared tasks (tasks shared WITH current user)
+    let sharedQuery = `
+      SELECT DISTINCT t.* 
+      FROM tasks t
+      INNER JOIN task_shares ts ON t.id = ts.task_id
+    `;
+
+    // Join with task_tags if filtering by tags for shared tasks too
+    if (tags) {
+      sharedQuery += ' INNER JOIN task_tags tt ON t.id = tt.task_id';
+    }
+
+    sharedQuery += ' WHERE ts.shared_with_id = ? AND t.deleted_at IS NULL';
+    const sharedParams: any[] = [userId];
+
+    // Apply same filters to shared tasks
+    if (archived === 'true') {
+      sharedQuery += ' AND t.is_archived = 1';
+    } else if (archived === 'false') {
+      sharedQuery += ' AND t.is_archived = 0';
+    } else {
+      sharedQuery += ' AND t.is_archived = 0';
+    }
+
+    if (from) {
+      sharedQuery += ' AND t.start_at >= ?';
+      sharedParams.push(from);
+    }
+    if (to) {
+      sharedQuery += ' AND t.start_at <= ?';
+      sharedParams.push(to);
+    }
+    if (status) {
+      sharedQuery += ' AND t.status = ?';
+      sharedParams.push(status);
+    }
+    if (priority) {
+      sharedQuery += ' AND t.priority = ?';
+      sharedParams.push(priority);
+    }
+    if (search) {
+      sharedQuery += ' AND t.title LIKE ?';
+      sharedParams.push(`%${search}%`);
+    }
+    if (tags) {
+      const tagIds = tags.split(',').filter((id) => id.trim());
+      if (tagIds.length > 0) {
+        const placeholders = tagIds.map(() => '?').join(',');
+        sharedQuery += ` AND tt.tag_id IN (${placeholders})`;
+        sharedParams.push(...tagIds);
+      }
+    }
+
+    sharedQuery += ' ORDER BY t.start_at ASC';
+
+    const { results: sharedTasks } = await c.env.DB.prepare(sharedQuery).bind(...sharedParams).all<TaskRow>();
+
+    // Combine owned and shared tasks, remove duplicates by ID
+    const taskMap = new Map<string, TaskRow>();
+    
+    for (const task of ownedTasks) {
+      taskMap.set(task.id, task);
+    }
+    
+    for (const task of sharedTasks) {
+      if (!taskMap.has(task.id)) {
+        taskMap.set(task.id, task);
+      }
+    }
+
+    // Convert to array and sort by start_at
+    const allTasks = Array.from(taskMap.values()).sort((a, b) => 
+      a.start_at.localeCompare(b.start_at)
+    );
+
+    const tasks = allTasks.map(taskRowToResponse);
 
     // Fetch tags for all tasks in batches
     if (tasks.length > 0) {
@@ -213,10 +289,17 @@ tasksRoutes.get('/:id', async (c) => {
     const userId = getUserId(c);
     const taskId = c.req.param('id');
 
+    // Check access (owner or shared with user)
+    const access = await checkTaskAccess(c.env.DB, taskId, userId);
+
+    if (!access.canView) {
+      return c.json({ error: 'Task not found or access denied' }, 404);
+    }
+
     const task = await c.env.DB.prepare(
-      'SELECT * FROM tasks WHERE id = ? AND user_id = ? AND deleted_at IS NULL'
+      'SELECT * FROM tasks WHERE id = ? AND deleted_at IS NULL'
     )
-      .bind(taskId, userId)
+      .bind(taskId)
       .first<TaskRow>();
 
     if (!task) {
@@ -254,11 +337,18 @@ tasksRoutes.patch('/:id', async (c) => {
     const taskId = c.req.param('id');
     body = await c.req.json<TaskUpdateInput>();
 
-    // Check if task exists and belongs to user
+    // Check access (owner or edit permission)
+    const access = await checkTaskAccess(c.env.DB, taskId, userId);
+
+    if (!access.canEdit) {
+      return c.json({ error: 'Task not found or you do not have edit permission' }, 403);
+    }
+
+    // Get existing task
     const existingTask = await c.env.DB.prepare(
-      'SELECT * FROM tasks WHERE id = ? AND user_id = ? AND deleted_at IS NULL'
+      'SELECT * FROM tasks WHERE id = ? AND deleted_at IS NULL'
     )
-      .bind(taskId, userId)
+      .bind(taskId)
       .first<TaskRow>();
 
     if (!existingTask) {
@@ -304,14 +394,14 @@ tasksRoutes.patch('/:id', async (c) => {
 
     updates.push('updated_at = ?');
     params.push(new Date().toISOString());
-    params.push(taskId, userId);
+    params.push(taskId);
 
-    await c.env.DB.prepare(`UPDATE tasks SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`)
+    await c.env.DB.prepare(`UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`)
       .bind(...params)
       .run();
 
-    const updatedTask = await c.env.DB.prepare('SELECT * FROM tasks WHERE id = ? AND user_id = ?')
-      .bind(taskId, userId)
+    const updatedTask = await c.env.DB.prepare('SELECT * FROM tasks WHERE id = ?')
+      .bind(taskId)
       .first<TaskRow>();
 
     if (!updatedTask) {
@@ -332,18 +422,25 @@ tasksRoutes.delete('/:id', async (c) => {
     const userId = getUserId(c);
     const taskId = c.req.param('id');
 
+    // Check access (only owner can delete/archive)
+    const access = await checkTaskAccess(c.env.DB, taskId, userId);
+
+    if (!access.canDelete) {
+      return c.json({ error: 'Task not found or only owner can delete tasks' }, 403);
+    }
+
     const task = await c.env.DB.prepare(
-      'SELECT * FROM tasks WHERE id = ? AND user_id = ? AND deleted_at IS NULL'
+      'SELECT * FROM tasks WHERE id = ? AND deleted_at IS NULL'
     )
-      .bind(taskId, userId)
+      .bind(taskId)
       .first<TaskRow>();
 
     if (!task) {
       return c.json({ error: 'Task not found' }, 404);
     }
 
-    await c.env.DB.prepare('UPDATE tasks SET is_archived = 1, updated_at = ? WHERE id = ? AND user_id = ?')
-      .bind(new Date().toISOString(), taskId, userId)
+    await c.env.DB.prepare('UPDATE tasks SET is_archived = 1, updated_at = ? WHERE id = ?')
+      .bind(new Date().toISOString(), taskId)
       .run();
 
     return c.json({ message: 'Task archived successfully' });
@@ -359,18 +456,25 @@ tasksRoutes.delete('/:id/permanent', async (c) => {
     const userId = getUserId(c);
     const taskId = c.req.param('id');
 
+    // Check access (only owner can permanently delete)
+    const access = await checkTaskAccess(c.env.DB, taskId, userId);
+
+    if (!access.canDelete) {
+      return c.json({ error: 'Task not found or only owner can permanently delete tasks' }, 403);
+    }
+
     const task = await c.env.DB.prepare(
-      'SELECT * FROM tasks WHERE id = ? AND user_id = ? AND is_archived = 1 AND deleted_at IS NULL'
+      'SELECT * FROM tasks WHERE id = ? AND is_archived = 1 AND deleted_at IS NULL'
     )
-      .bind(taskId, userId)
+      .bind(taskId)
       .first<TaskRow>();
 
     if (!task) {
       return c.json({ error: 'Task not found or not archived' }, 404);
     }
 
-    await c.env.DB.prepare('UPDATE tasks SET deleted_at = ? WHERE id = ? AND user_id = ?')
-      .bind(new Date().toISOString(), taskId, userId)
+    await c.env.DB.prepare('UPDATE tasks SET deleted_at = ? WHERE id = ?')
+      .bind(new Date().toISOString(), taskId)
       .run();
 
     return c.json({ message: 'Task permanently deleted' });

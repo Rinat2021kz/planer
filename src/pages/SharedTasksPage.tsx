@@ -37,35 +37,34 @@ export const SharedTasksPage = () => {
   }, []);
 
   const handleStatusChange = async (taskId: string, newStatus: 'done' | 'planned') => {
-    // Check if user has edit permission
-    const task = tasks.find(t => t.id === taskId);
-    if (task && task.permission === 'view') {
-      setError('У вас нет прав на редактирование этой задачи');
-      return;
-    }
-
     try {
       await updateTask(taskId, { status: newStatus });
       await loadSharedTasks();
     } catch (err) {
       console.error('Error updating task:', err);
-      setError(err instanceof Error ? err.message : 'Failed to update task');
+      // Check if error is due to permissions
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update task';
+      if (errorMessage.includes('permission') || errorMessage.includes('edit')) {
+        setError('У вас нет прав на редактирование этой задачи');
+      } else {
+        setError(errorMessage);
+      }
     }
   };
 
   const handleDelete = async (taskId: string) => {
-    const task = tasks.find(t => t.id === taskId);
-    if (task && task.permission === 'view') {
-      setError('У вас нет прав на удаление этой задачи');
-      return;
-    }
-
     try {
       await archiveTask(taskId);
       await loadSharedTasks();
     } catch (err) {
       console.error('Error deleting task:', err);
-      setError(err instanceof Error ? err.message : 'Failed to delete task');
+      // Check if error is due to permissions
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete task';
+      if (errorMessage.includes('permission') || errorMessage.includes('owner')) {
+        setError('Только владелец может удалить задачу');
+      } else {
+        setError(errorMessage);
+      }
     }
   };
 
@@ -115,8 +114,8 @@ export const SharedTasksPage = () => {
             </Box>
             <TaskCard
               task={task}
-              onStatusChange={task.permission === 'edit' ? handleStatusChange : undefined}
-              onDelete={task.permission === 'edit' ? handleDelete : undefined}
+              onStatusChange={handleStatusChange}
+              onDelete={handleDelete}
               onClick={(taskId) => navigate(`/tasks/${taskId}`)}
             />
           </Box>

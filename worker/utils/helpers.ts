@@ -53,3 +53,81 @@ export const checkOwnership = async (
   return result !== null;
 };
 
+// Task access permission types
+export type TaskAccessLevel = 'none' | 'view' | 'edit' | 'owner';
+
+// Task access info
+export type TaskAccessInfo = {
+  hasAccess: boolean;
+  accessLevel: TaskAccessLevel;
+  isOwner: boolean;
+  canView: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+};
+
+// Check task access with sharing permissions
+export const checkTaskAccess = async (
+  db: D1Database,
+  taskId: string,
+  userId: string
+): Promise<TaskAccessInfo> => {
+  // Check if user is the owner
+  const ownerTask = await db
+    .prepare('SELECT id, user_id FROM tasks WHERE id = ? AND deleted_at IS NULL')
+    .bind(taskId)
+    .first<{ id: string; user_id: string }>();
+
+  if (!ownerTask) {
+    return {
+      hasAccess: false,
+      accessLevel: 'none',
+      isOwner: false,
+      canView: false,
+      canEdit: false,
+      canDelete: false,
+    };
+  }
+
+  const isOwner = ownerTask.user_id === userId;
+
+  if (isOwner) {
+    return {
+      hasAccess: true,
+      accessLevel: 'owner',
+      isOwner: true,
+      canView: true,
+      canEdit: true,
+      canDelete: true,
+    };
+  }
+
+  // Check if task is shared with user
+  const share = await db
+    .prepare('SELECT permission FROM task_shares WHERE task_id = ? AND shared_with_id = ?')
+    .bind(taskId, userId)
+    .first<{ permission: 'view' | 'edit' }>();
+
+  if (!share) {
+    return {
+      hasAccess: false,
+      accessLevel: 'none',
+      isOwner: false,
+      canView: false,
+      canEdit: false,
+      canDelete: false,
+    };
+  }
+
+  const canEdit = share.permission === 'edit';
+
+  return {
+    hasAccess: true,
+    accessLevel: share.permission,
+    isOwner: false,
+    canView: true,
+    canEdit: canEdit,
+    canDelete: false, // Only owner can delete
+  };
+};
+

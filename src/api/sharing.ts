@@ -74,7 +74,7 @@ export const shareTask = async (input: ShareTaskInput): Promise<{ message: strin
 
 // Get shared tasks (tasks shared WITH me)
 export const getSharedTasks = async (): Promise<{ tasks: SharedTask[] }> => {
-  return fetchWithAuth('/api/protected/shared-tasks');
+  return fetchWithAuth('/api/protected/tasks/shared-tasks');
 };
 
 // Get shares for a task (who has access to MY task)
