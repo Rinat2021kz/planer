@@ -88,10 +88,7 @@ export const TaskCard = ({
     setAnchorEl(e.currentTarget);
   };
 
-  const handleMenuClose = (e?: React.MouseEvent) => {
-    if (e) {
-      e.stopPropagation();
-    }
+  const handleMenuClose = () => {
     setAnchorEl(null);
   };
 

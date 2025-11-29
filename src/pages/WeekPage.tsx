@@ -102,26 +102,6 @@ export const WeekPage = () => {
     setCurrentWeekStart(start);
   };
 
-  const handleStatusChange = async (taskId: string, newStatus: 'done' | 'planned') => {
-    try {
-      await updateTask(taskId, { status: newStatus });
-      await loadTasks();
-    } catch (err) {
-      console.error('Error updating task:', err);
-      setError(err instanceof Error ? err.message : 'Failed to update task');
-    }
-  };
-
-  const handleDelete = async (taskId: string) => {
-    try {
-      await archiveTask(taskId);
-      await loadTasks();
-    } catch (err) {
-      console.error('Error deleting task:', err);
-      setError(err instanceof Error ? err.message : 'Failed to delete task');
-    }
-  };
-
   const {
     handleStatusChange: handleStatus,
     handleEdit,
