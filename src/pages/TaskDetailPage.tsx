@@ -57,7 +57,23 @@ export const TaskDetailPage = () => {
     try {
       setLoading(true);
       setError(null);
+      
+      // Debug: log current user info
+      console.log('=== LOADING TASK ===', {
+        taskId,
+        currentUser: user,
+        currentUserUid: user?.uid,
+        currentUserEmail: user?.email
+      });
+      
       const fetchedTask = await getTask(taskId);
+      
+      console.log('=== TASK LOADED ===', {
+        fetchedTask,
+        taskUserId: fetchedTask.userId,
+        taskUserIdType: typeof fetchedTask.userId
+      });
+      
       setTask(fetchedTask);
       setSelectedTags(fetchedTask.tags || []);
     } catch (err) {
@@ -481,12 +497,18 @@ export const TaskDetailPage = () => {
 
       {task && (
         <>
-          {/* Debug: log task ownership */}
-          {console.log('Task ownership check:', {
+          {/* Debug: log task ownership with detailed info */}
+          {console.log('=== OWNERSHIP CHECK ===', {
             taskUserId: task.userId,
+            taskUserIdType: typeof task.userId,
             currentUserUid: user?.uid,
+            currentUserUidType: typeof user?.uid,
             isOwner: task.userId === user?.uid,
-            taskTitle: task.title
+            strictEqual: task.userId === user?.uid,
+            looseEqual: task.userId == user?.uid,
+            taskTitle: task.title,
+            fullUser: user,
+            fullTask: task
           })}
           <ShareTaskDialog
             open={shareDialogOpen}
