@@ -36,6 +36,7 @@ import {
   People as PeopleIcon,
   List as ListIcon,
   Archive as ArchiveIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material'
 import { useThemeContext } from './ThemeContext'
 import { useAuth } from './AuthContext'
@@ -52,6 +53,7 @@ import { TaskDetailPage } from './pages/TaskDetailPage'
 import { SharedTasksPage } from './pages/SharedTasksPage'
 import { AllTasksPage } from './pages/AllTasksPage'
 import { ArchivePage } from './pages/ArchivePage'
+import { OverduePage } from './pages/OverduePage'
 import './App.css'
 
 // Main authenticated app layout component
@@ -88,6 +90,7 @@ const AppLayout = () => {
 
   const menuItems = [
     { text: 'Все задачи', icon: <ListIcon />, path: '/all' },
+    { text: 'Просроченные', icon: <WarningIcon />, path: '/overdue', badge: true },
     { text: 'Сегодня', icon: <TodayIcon />, path: '/today' },
     { text: 'Неделя', icon: <DateRangeIcon />, path: '/week' },
     { text: 'Месяц', icon: <CalendarMonthIcon />, path: '/month' },
@@ -214,6 +217,7 @@ const AppLayout = () => {
         <Routes>
           <Route path="/" element={<Navigate to="/all" replace />} />
           <Route path="/all" element={<AllTasksPage />} />
+          <Route path="/overdue" element={<OverduePage />} />
           <Route path="/today" element={<TodayPage />} />
           <Route path="/week" element={<WeekPage />} />
           <Route path="/month" element={<MonthPage />} />

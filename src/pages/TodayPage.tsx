@@ -21,6 +21,7 @@ export const TodayPage = () => {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [upcomingDeadlineTasks, setUpcomingDeadlineTasks] = useState<Task[]>([]);
+  const [overdueTasks, setOverdueTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -64,8 +65,16 @@ export const TodayPage = () => {
         archived: 'false',
       });
       
-      // Filter tasks with deadlines in the next 3 days that are not done
       const now = new Date();
+      
+      // Filter overdue tasks
+      const overdueTasksList = upcomingResponse.tasks.filter(task => {
+        if (!task.deadlineAt || task.status === 'done') return false;
+        return new Date(task.deadlineAt) < now;
+      });
+      setOverdueTasks(overdueTasksList);
+      
+      // Filter tasks with deadlines in the next 3 days that are not done
       const threeDaysFromNow = new Date(now);
       threeDaysFromNow.setDate(now.getDate() + 3);
       
@@ -126,6 +135,38 @@ export const TodayPage = () => {
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
+      )}
+
+      {/* Overdue Tasks Section */}
+      {overdueTasks.length > 0 && (
+        <Paper 
+          sx={{ 
+            p: 2, 
+            mb: 3, 
+            backgroundColor: 'error.light',
+            borderLeft: 4,
+            borderColor: 'error.main',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <WarningIcon color="error" />
+            <Typography variant="h6" color="error.dark">
+              ⚠️ Просроченные задачи ({overdueTasks.length})
+            </Typography>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Задачи с истекшим дедлайном
+          </Typography>
+          {overdueTasks.map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              onStatusChange={handleStatusChange}
+              onDelete={handleDelete}
+              onClick={(taskId) => navigate(`/tasks/${taskId}`)}
+            />
+          ))}
+        </Paper>
       )}
 
       {/* Upcoming Deadlines Section */}

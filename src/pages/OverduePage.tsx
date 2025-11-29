@@ -9,63 +9,37 @@ import {
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import { TaskCard } from '../components/TaskCard';
-import { TaskFilters } from '../components/TaskFilters';
-import type { TaskFiltersValue } from '../components/TaskFilters';
 import { getTasks, updateTask, archiveTask } from '../api/tasks';
 import type { Task } from '../api/tasks';
 import { CreateTaskDialog } from '../components/CreateTaskDialog';
 
-export const AllTasksPage = () => {
+export const OverduePage = () => {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filters, setFilters] = useState<TaskFiltersValue>({});
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const loadTasks = async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      // Build date range from filters
-      let from: string | undefined;
-      let to: string | undefined;
 
-      if (filters.dateFrom) {
-        from = new Date(filters.dateFrom).toISOString();
-      }
-      if (filters.dateTo) {
-        const endDate = new Date(filters.dateTo);
-        endDate.setHours(23, 59, 59, 999);
-        to = endDate.toISOString();
-      }
-
+      // Get all tasks and filter overdue on client side
       const response = await getTasks({
-        from,
-        to,
         archived: 'false',
-        search: filters.search,
-        status: filters.status,
-        priority: filters.priority,
-        tags: filters.tagIds?.join(','),
       });
-      
-      let filteredTasks = response.tasks;
-      
-      // Client-side filter for overdue tasks
-      if (filters.overdue) {
-        const now = new Date();
-        filteredTasks = filteredTasks.filter(task => {
-          if (!task.deadlineAt) return false;
-          return new Date(task.deadlineAt) < now && task.status !== 'done';
-        });
-      }
-      
-      setTasks(filteredTasks);
+
+      const now = new Date();
+      const overdueTasks = response.tasks.filter(task => {
+        if (!task.deadlineAt) return false;
+        return new Date(task.deadlineAt) < now && task.status !== 'done';
+      });
+
+      setTasks(overdueTasks);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load tasks');
-      console.error('Error loading tasks:', err);
+      console.error('Error loading overdue tasks:', err);
     } finally {
       setLoading(false);
     }
@@ -73,7 +47,7 @@ export const AllTasksPage = () => {
 
   useEffect(() => {
     loadTasks();
-  }, [filters]);
+  }, []);
 
   const handleStatusChange = async (taskId: string, newStatus: 'done' | 'planned') => {
     try {
@@ -106,13 +80,11 @@ export const AllTasksPage = () => {
   return (
     <Box sx={{ p: 2, pb: 10 }}>
       <Typography variant="h4" gutterBottom>
-        Все задачи
+        Просроченные задачи
       </Typography>
 
       <Typography variant="body2" color="text.secondary" paragraph>
-        {filters.dateFrom || filters.dateTo 
-          ? 'Задачи за выбранный период' 
-          : 'Все ваши задачи без ограничения по дате'}
+        Задачи с истекшим дедлайном, которые еще не выполнены
       </Typography>
 
       {error && (
@@ -121,19 +93,15 @@ export const AllTasksPage = () => {
         </Alert>
       )}
 
-      <TaskFilters value={filters} onChange={setFilters} />
-
       {tasks.length === 0 ? (
-        <Typography variant="body1" color="text.secondary">
-          {filters.dateFrom || filters.dateTo || filters.search || filters.status || filters.priority || (filters.tagIds && filters.tagIds.length > 0)
-            ? 'Нет задач, соответствующих фильтрам'
-            : 'Нет задач. Создайте первую задачу!'}
-        </Typography>
+        <Alert severity="success" sx={{ mt: 2 }}>
+          🎉 Отлично! У вас нет просроченных задач.
+        </Alert>
       ) : (
         <>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Найдено задач: {tasks.length}
-          </Typography>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Найдено просроченных задач: {tasks.length}
+          </Alert>
           {tasks.map((task) => (
             <TaskCard
               key={task.id}

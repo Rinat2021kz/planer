@@ -43,6 +43,9 @@ const statusLabels = {
 
 export const TaskCard = ({ task, onStatusChange, onEdit, onDelete, onClick }: TaskCardProps) => {
   const isDone = task.status === 'done';
+  
+  // Check if task is overdue
+  const isOverdue = task.deadlineAt && new Date(task.deadlineAt) < new Date() && task.status !== 'done';
 
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation();
@@ -177,6 +180,23 @@ export const TaskCard = ({ task, onStatusChange, onEdit, onDelete, onClick }: Ta
                 size="small"
                 variant="outlined"
               />
+
+              {isOverdue && (
+                <Chip
+                  icon={<WarningIcon />}
+                  label="Просрочена"
+                  size="small"
+                  color="error"
+                  variant="filled"
+                  sx={{
+                    animation: 'pulse 2s ease-in-out infinite',
+                    '@keyframes pulse': {
+                      '0%, 100%': { opacity: 1 },
+                      '50%': { opacity: 0.7 },
+                    },
+                  }}
+                />
+              )}
 
               {task.recurrenceId && (
                 <Chip

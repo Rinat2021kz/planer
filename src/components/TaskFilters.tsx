@@ -24,6 +24,7 @@ export type TaskFiltersValue = {
   tagIds?: string[];
   dateFrom?: string;
   dateTo?: string;
+  overdue?: boolean;
 };
 
 type TaskFiltersProps = {
@@ -72,12 +73,16 @@ export const TaskFilters = ({ value, onChange }: TaskFiltersProps) => {
     onChange({ ...value, dateTo: date || undefined });
   };
 
+  const handleOverdueChange = (overdue: string) => {
+    onChange({ ...value, overdue: overdue === 'true' ? true : undefined });
+  };
+
   const getSelectedTags = (): Tag[] => {
     if (!value.tagIds || value.tagIds.length === 0) return [];
     return availableTags.filter(tag => value.tagIds!.includes(tag.id));
   };
 
-  const hasActiveFilters = !!(value.search || value.status || value.priority || (value.tagIds && value.tagIds.length > 0) || value.dateFrom || value.dateTo);
+  const hasActiveFilters = !!(value.search || value.status || value.priority || (value.tagIds && value.tagIds.length > 0) || value.dateFrom || value.dateTo || value.overdue);
 
   return (
     <Box sx={{ mb: 2 }}>
@@ -129,6 +134,18 @@ export const TaskFilters = ({ value, onChange }: TaskFiltersProps) => {
               <MenuItem value="medium">Средний</MenuItem>
               <MenuItem value="high">Высокий</MenuItem>
               <MenuItem value="critical">Критический</MenuItem>
+            </TextField>
+
+            <TextField
+              label="Просроченные"
+              select
+              value={value.overdue ? 'true' : ''}
+              onChange={(e) => handleOverdueChange(e.target.value)}
+              size="small"
+              fullWidth
+            >
+              <MenuItem value="">Все</MenuItem>
+              <MenuItem value="true">Только просроченные</MenuItem>
             </TextField>
 
             <Box sx={{ display: 'flex', gap: 2 }}>
