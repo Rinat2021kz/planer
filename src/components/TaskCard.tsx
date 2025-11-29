@@ -67,6 +67,16 @@ export const TaskCard = ({ task, onStatusChange, onEdit, onDelete, onClick }: Ta
     return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
   };
 
+  const formatDateTime = (isoString: string) => {
+    const date = new Date(isoString);
+    return date.toLocaleDateString('ru-RU', { 
+      day: 'numeric', 
+      month: 'short', 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
   const getDeadlineStatus = (deadlineAt: string) => {
     const now = new Date();
     const deadline = new Date(deadlineAt);
@@ -126,7 +136,7 @@ export const TaskCard = ({ task, onStatusChange, onEdit, onDelete, onClick }: Ta
               <Tooltip title="Время начала">
                 <Chip
                   icon={<EventIcon />}
-                  label={formatTime(task.startAt)}
+                  label={formatDateTime(task.startAt)}
                   size="small"
                   variant="outlined"
                 />
