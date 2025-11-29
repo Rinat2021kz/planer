@@ -56,16 +56,44 @@ taskTagsRoutes.put('/:taskId/tags', async (c) => {
       return c.json({ error: 'Task not found or you do not have edit permission' }, 403);
     }
 
-    // Verify all tags belong to user (tags can only be owned by the user adding them)
+    // Verify all tags: either belong to current user OR already exist on the task
     if (body.tagIds && body.tagIds.length > 0) {
       const placeholders = body.tagIds.map(() => '?').join(',');
-      const { results } = await c.env.DB.prepare(
-        `SELECT id FROM tags WHERE user_id = ? AND id IN (${placeholders})`
+      
+      // Get existing tags on the task
+      const { results: existingTaskTags } = await c.env.DB.prepare(
+        `SELECT tag_id FROM task_tags WHERE task_id = ?`
       )
-        .bind(userId, ...body.tagIds)
+        .bind(taskId)
+        .all<{ tag_id: string }>();
+      
+      const existingTagIds = new Set(existingTaskTags.map(t => t.tag_id));
+      
+      // Check which tags are new (not already on the task)
+      const newTagIds = body.tagIds.filter(tagId => !existingTagIds.has(tagId));
+      
+      // Verify new tags belong to current user
+      if (newTagIds.length > 0) {
+        const newTagPlaceholders = newTagIds.map(() => '?').join(',');
+        const { results: validNewTags } = await c.env.DB.prepare(
+          `SELECT id FROM tags WHERE user_id = ? AND id IN (${newTagPlaceholders})`
+        )
+          .bind(userId, ...newTagIds)
+          .all();
+
+        if (validNewTags.length !== newTagIds.length) {
+          return c.json({ error: 'You can only add your own tags to the task' }, 403);
+        }
+      }
+      
+      // Verify all requested tags exist in tags table
+      const { results: allValidTags } = await c.env.DB.prepare(
+        `SELECT id FROM tags WHERE id IN (${placeholders})`
+      )
+        .bind(...body.tagIds)
         .all();
 
-      if (results.length !== body.tagIds.length) {
+      if (allValidTags.length !== body.tagIds.length) {
         return c.json({ error: 'One or more tags not found' }, 404);
       }
     }
