@@ -186,15 +186,17 @@ export const ShareTaskDialog = ({ open, onClose, taskId, taskTitle, isOwner }: S
                   primary={share.email}
                   secondary={`${share.displayName || ''} • ${share.permission === 'view' ? 'Просмотр' : 'Редактирование'}`}
                 />
-                <ListItemSecondaryAction>
-                  <IconButton
-                    edge="end"
-                    onClick={() => handleRemoveShare(share.id)}
-                    color="error"
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </ListItemSecondaryAction>
+                {isOwner && (
+                  <ListItemSecondaryAction>
+                    <IconButton
+                      edge="end"
+                      onClick={() => handleRemoveShare(share.id)}
+                      color="error"
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </ListItemSecondaryAction>
+                )}
               </ListItem>
             ))}
           </List>
