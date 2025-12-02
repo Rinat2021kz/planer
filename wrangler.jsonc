@@ -1,7 +1,3 @@
-/**
- * For more details on how to configure Wrangler, refer to:
- * https://developers.cloudflare.com/workers/wrangler/configuration/
- */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "planer",
@@ -13,21 +9,6 @@
 	"observability": {
 		"enabled": true
 	},
-	/**
-	 * Smart Placement
-	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
-	 */
-	// "placement": { "mode": "smart" },
-	/**
-	 * Bindings
-	 * Bindings allow your Worker to interact with resources on the Cloudflare Developer Platform, including
-	 * databases, object storage, AI inference, real-time communication and more.
-	 * https://developers.cloudflare.com/workers/runtime-apis/bindings/
-	 */
-	/**
-	 * D1 Databases
-	 * https://developers.cloudflare.com/d1/
-	 */
 	"d1_databases": [
 		{
 			"binding": "DB",
@@ -36,36 +17,37 @@
 			"remote": true
 		}
 	],
-	/**
-	 * KV Namespaces for Firebase Auth public key caching
-	 * https://developers.cloudflare.com/kv/
-	 */
-	"kv_namespaces": [
+		"kv_namespaces": [
 		{
 			"binding": "PUBLIC_JWK_CACHE_KV",
 			"id": "b0ddc76191504b8ba112f42c19f7c77b",
 			"remote": true
 		}
 	],
-	/**
-	 * Environment Variables
-	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
-	 */
-	"vars": {
+		"vars": {
 		"PUBLIC_JWK_CACHE_KEY": "firebase-auth-jwk-cache"
+	},
+	"env": {
+		"dev": {
+			"name": "planer-dev",
+			"vars": {
+				"PUBLIC_JWK_CACHE_KEY": "firebase-auth-jwk-cache"
+			},
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "planer-db",
+					"database_id": "f4b7c345-8f29-4021-a5f2-8014f2bdd76c",
+					"remote": true
+				}
+			],
+			"kv_namespaces": [
+				{
+					"binding": "PUBLIC_JWK_CACHE_KV",
+					"id": "b0ddc76191504b8ba112f42c19f7c77b",
+					"remote": true
+				}
+			]
+		}
 	}
-	/**
-	 * Note: Use secrets to store sensitive data.
-	 * https://developers.cloudflare.com/workers/configuration/secrets/
-	 */
-	/**
-	 * Static Assets
-	 * https://developers.cloudflare.com/workers/static-assets/binding/
-	 */
-	// "assets": { "directory": "./public/", "binding": "ASSETS" }
-	/**
-	 * Service Bindings (communicate between multiple Workers)
-	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
-	 */
-	// "services": [{ "binding": "MY_SERVICE", "service": "my-service" }]
 }
