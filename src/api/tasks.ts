@@ -2,9 +2,7 @@
 
 import type { Tag } from './tags';
 
-const API_BASE_URL = import.meta.env.DEV 
-  ? '' 
-  : '';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
 export type TaskStatus = 'planned' | 'in_progress' | 'done' | 'skipped' | 'canceled';

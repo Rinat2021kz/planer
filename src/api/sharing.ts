@@ -1,8 +1,6 @@
 // API client for task sharing
 
-const API_BASE_URL = import.meta.env.DEV 
-  ? '' 
-  : '';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export type TaskShare = {
   id: string;

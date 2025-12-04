@@ -1,8 +1,6 @@
 // API client for recurrences
 
-const API_BASE_URL = import.meta.env.DEV 
-  ? '' 
-  : '';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export type RecurrenceType = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom' | 'workdays' | 'weekends';
 export type RecurrenceEndType = 'never' | 'date' | 'count';
