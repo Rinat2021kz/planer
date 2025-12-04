@@ -26,6 +26,7 @@ import {
   Archive as ArchiveIcon,
 } from '@mui/icons-material';
 import type { Task } from '../api/tasks';
+import { shareTask as shareTaskNative } from '../utils/share';
 
 type TaskCardProps = {
   task: Task;
@@ -108,9 +109,18 @@ export const TaskCard = ({
     }
   };
 
-  const handleShareClick = (e: React.MouseEvent) => {
+  const handleShareClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     handleMenuClose();
+    
+    // Use native share
+    try {
+      await shareTaskNative(task.id, task.title);
+    } catch (err) {
+      console.error('Error sharing task:', err);
+    }
+    
+    // Also call the callback if provided (for backward compatibility)
     if (onShare) {
       onShare(task.id);
     }

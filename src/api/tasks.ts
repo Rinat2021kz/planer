@@ -1,8 +1,7 @@
 // API client for tasks
 
 import type { Tag } from './tags';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+import { fetchWithAuth } from './config';
 
 export type TaskPriority = 'low' | 'medium' | 'high' | 'critical';
 export type TaskStatus = 'planned' | 'in_progress' | 'done' | 'skipped' | 'canceled';
@@ -50,36 +49,6 @@ export type TasksFilter = {
   archived?: 'true' | 'false';
   search?: string;
   tags?: string; // Comma-separated tag IDs
-};
-
-// Helper to get auth token from localStorage
-const getAuthToken = (): string | null => {
-  return localStorage.getItem('firebaseToken');
-};
-
-// Helper to make authenticated requests
-const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
-  const token = getAuthToken();
-  
-  if (!token) {
-    throw new Error('No authentication token found');
-  }
-
-  const response = await fetch(`${API_BASE_URL}${url}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      ...options.headers,
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || error.message || `HTTP ${response.status}`);
-  }
-
-  return response.json();
 };
 
 // Create a new task

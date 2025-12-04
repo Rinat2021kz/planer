@@ -6,11 +6,11 @@ const config: CapacitorConfig = {
   webDir: 'dist/client',
   
 
-  server: {
-    url: 'https://planer.gassimov2014.workers.dev',
-    androidScheme: 'https',
-     iosScheme: 'https',
-  },
+    // server: {
+    //   url: 'https://planer.gassimov2014.workers.dev',
+    //   androidScheme: 'https',
+    //    iosScheme: 'https',
+    // },
 
   plugins: {
     SplashScreen: {

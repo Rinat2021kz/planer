@@ -22,6 +22,8 @@ import {
   Delete as DeleteIcon,
   ContentCopy as ContentCopyIcon,
   Share as ShareIcon,
+  Send as SendIcon,
+  People as PeopleIcon,
 } from '@mui/icons-material';
 import { getTask, updateTask, archiveTask, createTask } from '../api/tasks';
 import type { Task, TaskPriority, TaskStatus, UpdateTaskInput, CreateTaskInput } from '../api/tasks';
@@ -29,6 +31,7 @@ import { getTags, setTaskTags } from '../api/tags';
 import type { Tag } from '../api/tags';
 import { ShareTaskDialog } from '../components/ShareTaskDialog';
 import { useAuth } from '../AuthContext';
+import { shareTask as shareTaskNative } from '../utils/share';
 
 const statusLabels: Record<TaskStatus, string> = {
   planned: 'Запланирована',
@@ -189,6 +192,20 @@ export const TaskDetailPage = () => {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to duplicate task');
       console.error('Error duplicating task:', err);
+    }
+  };
+
+  const handleNativeShare = async () => {
+    if (!task) return;
+    
+    try {
+      await shareTaskNative(task.id, task.title);
+    } catch (err) {
+      console.error('Error sharing task:', err);
+      // Don't show error if user just cancelled
+      if (err instanceof Error && err.message !== 'Share canceled') {
+        setError('Failed to share task');
+      }
     }
   };
 
@@ -469,11 +486,18 @@ export const TaskDetailPage = () => {
 
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
               <Button
-                startIcon={<ShareIcon />}
+                startIcon={<SendIcon />}
+                variant="contained"
+                onClick={handleNativeShare}
+              >
+                Отправить ссылку
+              </Button>
+              <Button
+                startIcon={<PeopleIcon />}
                 variant="outlined"
                 onClick={() => setShareDialogOpen(true)}
               >
-                Поделиться
+                Пригласить
               </Button>
               <Button
                 startIcon={<ContentCopyIcon />}
