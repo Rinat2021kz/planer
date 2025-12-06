@@ -1,14 +1,14 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 
-// Firebase configuration
+// Firebase configuration from environment variables
 const firebaseConfig = {
-  apiKey: "AIzaSyAl1mllYr63-E-y7G3g86edck6S9jm7Qqc",
-  authDomain: "planer-8edbd.firebaseapp.com",
-  projectId: "planer-8edbd",
-  storageBucket: "planer-8edbd.firebasestorage.app",
-  messagingSenderId: "102757281956",
-  appId: "1:102757281956:web:f38d558f0c6d570435f631"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 // Initialize Firebase

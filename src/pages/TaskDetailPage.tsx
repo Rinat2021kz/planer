@@ -21,7 +21,6 @@ import {
   Cancel as CancelIcon,
   Delete as DeleteIcon,
   ContentCopy as ContentCopyIcon,
-  Share as ShareIcon,
   Send as SendIcon,
   People as PeopleIcon,
 } from '@mui/icons-material';
