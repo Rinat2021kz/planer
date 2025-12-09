@@ -15,12 +15,6 @@ import taskTagsRoutes from './routes/task-tags';
 import recurrencesRoutes from './routes/recurrences';
 import sharingRoutes from './routes/sharing';
 
-// Firebase Auth configuration
-const firebaseAuthConfig: VerifyFirebaseAuthConfig = {
-  projectId: 'planer-8edbd',
-  authorizationHeaderKey: 'Authorization',
-};
-
 // Initialize Hono app
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
@@ -43,8 +37,15 @@ app.onError(errorHandler);
 // Public routes
 app.route('/api', publicRoutes);
 
-// Apply Firebase Auth middleware to all protected routes
-app.use('/api/protected/*', verifyFirebaseAuth(firebaseAuthConfig));
+// Apply Firebase Auth middleware to all protected routes with dynamic config
+app.use('/api/protected/*', async (c, next) => {
+  const firebaseAuthConfig: VerifyFirebaseAuthConfig = {
+    projectId: c.env.FIREBASE_PROJECT_ID,
+    authorizationHeaderKey: 'Authorization',
+  };
+  
+  return verifyFirebaseAuth(firebaseAuthConfig)(c, next);
+});
 
 // Email verification and user sync middleware for protected routes
 app.use('/api/protected/*', requireEmailVerified());
