@@ -25,13 +25,15 @@
 		}
 	],
 		"vars": {
-		"PUBLIC_JWK_CACHE_KEY": "firebase-auth-jwk-cache"
+		"PUBLIC_JWK_CACHE_KEY": "firebase-auth-jwk-cache",
+		"FIREBASE_PROJECT_ID": "planer-8edbd"
 	},
 	"env": {
 		"dev": {
 			"name": "planer-dev",
 			"vars": {
-				"PUBLIC_JWK_CACHE_KEY": "firebase-auth-jwk-cache"
+				"PUBLIC_JWK_CACHE_KEY": "firebase-auth-jwk-cache",
+				"FIREBASE_PROJECT_ID": "planer-dev-ccaf4"
 			},
 			"d1_databases": [
 				{

@@ -50,10 +50,34 @@ export const Login = ({ onSwitchToRegister, onSwitchToForgotPassword }: LoginPro
       await login(email, password);
     } catch (err: unknown) {
       console.error('Login error:', err);
+      
+      // Handle Firebase auth errors with user-friendly messages
       if (err instanceof Error) {
-        setError(err.message);
+        const errorCode = (err as any).code;
+        
+        switch (errorCode) {
+          case 'auth/invalid-credential':
+          case 'auth/user-not-found':
+          case 'auth/wrong-password':
+            setError('Неверный email или пароль. Проверьте данные и попробуйте снова.');
+            break;
+          case 'auth/user-disabled':
+            setError('Этот аккаунт отключен.');
+            break;
+          case 'auth/too-many-requests':
+            setError('Слишком много попыток входа. Попробуйте позже.');
+            break;
+          case 'auth/network-request-failed':
+            setError('Ошибка сети. Проверьте подключение к интернету.');
+            break;
+          case 'auth/invalid-email':
+            setError('Неверный формат email.');
+            break;
+          default:
+            setError(err.message);
+        }
       } else {
-        setError('Failed to login. Please check your credentials.');
+        setError('Не удалось войти. Проверьте данные.');
       }
     } finally {
       setLoading(false);
